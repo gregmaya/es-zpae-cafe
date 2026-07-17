@@ -43,6 +43,8 @@ study_area = build_study_area(zpae_ambitos, buffer_m=BUFFER_M)
 competitors_clipped = result.gdf[result.gdf.intersects(study_area)]
 print(f"Competitors after clip to study area: "
       f"{len(result.gdf)} -> {len(competitors_clipped)}")
+print("Competitors after clip, by decreto_class:")
+print(competitors_clipped["decreto_class"].value_counts().to_string())
 
 competitors_out = PROCESSED_DIR / "hosteleria_competitors_zpae_clip.gpkg"
 competitors_clipped.to_file(competitors_out, driver="GPKG")

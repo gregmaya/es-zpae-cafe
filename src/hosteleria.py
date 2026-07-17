@@ -8,11 +8,10 @@ docs/superpowers/specs/2026-07-17-stage2-hosteleria-pipeline-design.md.
 from dataclasses import dataclass, field
 
 import geopandas as gpd
-from shapely.geometry import Point
 
 from activities import classify_epigrafe
-
-TARGET_CRS = "EPSG:25830"
+from ckan import build_point_geometry
+from zpae_geometry import TARGET_CRS
 
 
 @dataclass
@@ -38,7 +37,7 @@ def build_competitor_layer(records: list[dict]) -> CompetitorBuildResult:
     for row in records:
         if row["id_seccion"] not in ("I", "R"):
             continue
-        if row["desc_situacion_local"] != "Abierto":
+        if row["id_situacion_local"] != "1":
             continue
 
         result = classify_epigrafe(row["id_seccion"], row["id_epigrafe"])
@@ -50,9 +49,8 @@ def build_competitor_layer(records: list[dict]) -> CompetitorBuildResult:
                     "rotulo": row["rotulo"],
                     "decreto_class": result.decreto_class,
                     "desc_epigrafe": row["desc_epigrafe"],
-                    "geometry": Point(
-                        float(row["coordenada_x_local"]),
-                        float(row["coordenada_y_local"]),
+                    "geometry": build_point_geometry(
+                        row["coordenada_x_local"], row["coordenada_y_local"]
                     ),
                 }
             )
@@ -114,6 +112,7 @@ def summarize_candidate_context(
         ]
         is_existing_hosteleria = any(
             classify_epigrafe(row["id_seccion"], row["id_epigrafe"]).status == "mapped"
+            and row["desc_situacion_local"] == "Abierto"
             for _, row in matched.iterrows()
         )
         summaries.append(
