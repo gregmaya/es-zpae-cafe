@@ -1,3 +1,6 @@
 geopandas
 fiona
 pyogrio
+shapely
+requests
+pytest

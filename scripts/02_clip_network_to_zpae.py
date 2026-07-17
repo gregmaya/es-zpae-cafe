@@ -21,11 +21,14 @@ Run locally:
 """
 
 import argparse
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 import geopandas as gpd
 
-TARGET_CRS = "EPSG:25830"  # matches ZPAE layer; UTM 30N, metres
+from zpae_geometry import TARGET_CRS, build_study_area
 
 
 def main():
@@ -44,13 +47,7 @@ def main():
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
     zpae = gpd.read_file(args.zpae_geojson)
-    if zpae.crs is None:
-        zpae = zpae.set_crs(TARGET_CRS)
-    else:
-        zpae = zpae.to_crs(TARGET_CRS)
-
-    # dissolve to one polygon covering all four zones, then buffer
-    study_area = zpae.dissolve().buffer(args.buffer_m).iloc[0]
+    study_area = build_study_area(zpae, args.buffer_m)
 
     # list layers in the geopackage first so you can confirm exact names
     # match what QGIS showed you (rt_tramo_vial, rt_portalpk_p)
