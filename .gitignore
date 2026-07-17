@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# All downloaded/derived GIS data -- large, regenerable via scripts/*.py.
+data/
+
+# Primary-source normativa PDFs -- not redistributed, kept local only.
+docs/normativa_pdfs/
