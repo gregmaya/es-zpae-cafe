@@ -8,10 +8,15 @@ Only seccion I (Hostelería) and R (Actividades artísticas, recreativas y
 de entretenimiento) contain ZPAE-relevant epígrafes -- everything else is
 "not_applicable". Confirmed against the live API 2026-07-18; see
 docs/superpowers/specs/2026-07-17-stage2-hosteleria-pipeline-design.md
-for the full mapping table. Clase III Cat.2 ("salas de conciertos" / live
-theatre) remains a documented gap: 900003 (theatre/live performance) is
-deliberately excluded rather than guessed, preserving this gap as a known
-decision rather than an unmapped code.
+for the full mapping table. Two documented gaps are deliberately left
+unmapped/excluded rather than guessed, not silently absent:
+  - Clase III Cat.2 ("salas de conciertos" / live theatre): 900003
+    (theatre/live performance) is excluded rather than guessed.
+  - Hotel bars/restaurants with direct street access (a subset of the
+    551xxx accommodation epígrafes, excluded below as accommodation):
+    the census doesn't tag street-access separately from other hotel
+    amenities, so this edge case can't be distinguished from ordinary
+    hotel accommodation with the data available.
 """
 
 from dataclasses import dataclass
