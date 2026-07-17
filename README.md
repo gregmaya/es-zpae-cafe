@@ -13,12 +13,32 @@ reprojecting to EPSG:4326 only for the web layer).
 
 ## Status
 
-**Stage 1 (ground truth the rule) is complete.** All four zones' distance
-thresholds are parsed and encoded in [`src/zones.py`](src/zones.py), sourced
-directly from each zone's "Normativa del Plan Zonal Específico" PDF — see
-[`docs/data_sources.md`](docs/data_sources.md) for the full findings,
-including a real service bug in the ArcGIS REST endpoint and a
-court-annulled article in Centro's plan.
+**In plain terms: we know the actual rules, and we've mapped where every
+bar, café, and nightlife venue is in the four zones.** Two stages down,
+four to go before this becomes a usable map.
+
+- **Stage 1 — done.** Read the official council documents (not blog posts
+  or summaries) for all four zones to find the real minimum-distance rules.
+  These turned out to be more complicated than expected — the required
+  distance depends on both how "loud" the candidate's own street is
+  officially classified, and how loud the street of the nearest existing
+  venue is. One zone (Centro) even had a rule struck down by a court
+  ruling, which we found and excluded. All of this is written down in
+  [`src/zones.py`](src/zones.py), with full sourcing in
+  [`docs/data_sources.md`](docs/data_sources.md).
+- **Stage 2 — done.** Pulled Madrid's full public business registry
+  (~217,000 active and recently-closed businesses) and worked out which
+  ones count as "existing venues" a new café/bar has to keep its distance
+  from — not just other cafés, but also things like nightclubs and live
+  music bars, since that's what the rule actually says. Also worked out,
+  for every candidate address in the four zones, what's currently there
+  today (a shop, an empty unit, an existing café, nothing commercial at
+  all), so the tool can later answer "could a café open *here*" for any
+  address — not only ones that happen to be vacant right now. Full
+  breakdown in `docs/data_sources.md`.
+- **Stages 3–6 — not started yet:** building the actual street network for
+  distance calculations, computing pass/fail per address, and the final
+  map website.
 
 ## Setup
 
@@ -54,14 +74,11 @@ Four ZPAE zones exist in Madrid as of this writing:
 | AZCA-Av. Brasil | Tetuán | Jan 2015 |
 | Trafalgar-Ríos Rosas | Chamberí | 9 Jan 2023 |
 
-All four are in scope for the pilot.
-
-**Known gap to close in Stage 1**: the ArcGIS MapServer service description text
-only mentions three zones (Centro, Gaztambide, AZCA) — that's stale copy, not
-necessarily the live layer content. First task is querying the actual `Normativa`
-field on layer 4 to confirm Trafalgar-Ríos Rosas is present and to extract the
-real per-zone, per-classification distance thresholds (these are NOT uniform
-across zones — see docs/data_sources.md).
+All four are in scope for the pilot, and all four are confirmed present and
+mapped (the official map service's description text only mentioned three of
+them, which raised an early question about whether the fourth zone was
+missing — it wasn't, that text was just outdated; see
+`docs/data_sources.md`).
 
 ## Stages
 
