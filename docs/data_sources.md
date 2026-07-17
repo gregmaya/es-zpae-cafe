@@ -209,3 +209,90 @@ section 4 of the spec, or shapefile), and confirm CRS on the real file
 before building the loader. Use `dgc_via` to cross-check against the
 Catastro/Callejero address data pulled in Stage 2 — this table appears
 purpose-built to bridge the two.
+
+## 5. Hostelería competitor data + candidate address context (Stage 2)
+
+**CKAN datastore API** (`https://datos.madrid.es/api/3/action/`): the
+"censo de locales y actividades" dataset exposes four sibling resources
+under a single dataset ID:
+
+- `200085-1-censo-locales` — "identificación" (base location/address, no
+  activity code), 203,456 records. Not used.
+- `200085-3-censo-locales` — "licencia" (licence status), 216,984 records.
+  Not used.
+- `200085-5-censo-locales` — "actividad" (location + CNAE-based activity
+  epígrafe), 225,268 records. **This is the one used.** It already carries
+  everything needed: coordinates, status, name, and activity classification,
+  so the other three resources were redundant for this project's purposes.
+- `200085-6-censo-locales` — "terrazas" (outdoor seating permits), 6,576
+  records. Not used — no activity code of its own, and the Normativa
+  measures from the indoor "puerta del local," not the terrace footprint
+  (deferred to a possible later display-enrichment stage).
+
+**Status-code breakdown** of `200085-5-censo-locales`, citywide (`id_situacion_local`):
+Abierto 159,573 · Cerrado 40,272 · Baja 12,567 · Uso vivienda 8,480 · Baja
+Reunificación 4,376. Total: 225,268.
+
+Only "Uso vivienda" (residential conversion, no longer commercial) was
+excluded from the fetch — all other statuses were kept, including "Cerrado"
+(vacant-but-commercial premises), because the ZPAE rule applies regardless
+of an address's current occupancy, not just to currently-occupied venues (see
+`docs/superpowers/specs/2026-07-17-stage2-hosteleria-pipeline-design.md` for
+the fuller reasoning).
+
+**Fetch result**: `id_situacion_local != '5'` (excludes only Uso vivienda)
+→ 216,788 records fetched from the live API (2026-07-18). Pagination
+completeness asserted against the API's reported total — matches Stage 1's
+ArcGIS truncation-bug lesson: this CKAN API also caps rows per request and
+required the same paginate-until-total-matches discipline.
+
+**Activity classification** (`src/activities.py`): maps `id_epigrafe` (CNAE-based)
+to the Decreto 184/1998 class/categoría scheme used in every ZPAE Normativa
+(Clase III Cat.1/Cat.2, Clase IV Cat.4, Clase V Cat.9/Cat.10). Only
+seccion I (Hostelería) and seccion R (Actividades artísticas, recreativas y
+de entretenimiento) contain ZPAE-relevant epígrafes. The mapping table itself
+lives in `src/activities.py` (single source of truth) — see that file's
+`EPIGRAFE_TO_DECRETO_CLASS` dict and `EXCLUDED_EPIGRAFES` set for the
+~36-entry registry; the design doc references confirm each classification.
+
+**Two documented gaps, deliberately left unmapped/excluded rather than guessed:**
+
+1. Clase III Cat.2 ("salas de conciertos y asimilables") — no exact matching
+   epígrafe exists in this dataset. Three borderline "espectáculos"-adjacent
+   codes were found and excluded rather than guessed: `900001` (actividades
+   de creación, artísticas y espectáculos — too broad/ambiguous, could be
+   non-venue businesses), `900002` (locales de exhibiciones eróticas — only
+   1 open record citywide, negligible), `900003` (teatro y actividades
+   escénicas en directo — 145 open records, a plausible fit, but excluded to
+   avoid guessing at the Cat.1 vs Cat.2 classification).
+2. Hotel bars/restaurants with direct street access (a subset of the 551xxx
+   accommodation epígrafes) — the census doesn't tag street-access separately
+   from other hotel amenities, so this edge case can't be distinguished from
+   ordinary hotel accommodation with the data available.
+
+A total of 29 epígrafes surfaced as "unmapped" on the first live run, all
+subsequently reviewed and excluded: 9 accommodation codes (551001-551005,
+552001, 559001-559003) and 20 recreation/culture/sport codes with no
+plausible reading under the Decreto scheme (900001-900003, 910001-910002,
+920001-920002, 931001-931012, 932001-932002, 932007). See
+`src/activities.py`'s `EXCLUDED_EPIGRAFES` for the full list with per-code
+comments.
+
+**Final pipeline results** (from `scripts/04_reconcile_hosteleria.py`, real
+run against live-fetched data):
+
+- Competitor classification: 18,513 mapped (seccion I/R, Abierto, has a
+  confident Decreto class), 13,023 excluded, 0 unmapped.
+- Competitor layer after clipping to the four ZPAE zones + 300m buffer:
+  18,513 → 5,341 points. Saved to `data/processed/
+  hosteleria_competitors_zpae_clip.gpkg` (not committed; `data/` is gitignored).
+- Candidate address context: built by spatial-joining Stage 1's 13,876
+  clipped `rt_portalpk_p` address points to the nearest local(s) in the
+  (unclipped, citywide) `200085-5-censo-locales` pull, with a 15m distance
+  tolerance. Match-distance distribution: min=0.1m, median=4.4m, p95=11.5m,
+  max=15.0m (p95 comfortably below the 15m ceiling, so the tolerance isn't
+  obviously truncating real matches). 1,355 / 13,876 addresses (9.8%) have no
+  commercial local within 15m (flagged `has_commercial_local=False`, not
+  dropped from the output). Saved to `data/processed/
+  candidate_addresses_zpae_clip.gpkg` (not committed).
+- Both outputs are in EPSG:25830, consistent with the rest of the project.
