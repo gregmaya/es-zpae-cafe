@@ -40,3 +40,21 @@ def test_unmapped_epigrafe_in_relevant_seccion():
 def test_not_applicable_outside_seccion_i_r():
     result = classify_epigrafe("G", "471101")  # retail, unrelated seccion
     assert result == EpigrafeClassification(status="not_applicable")
+
+
+def test_excluded_accommodation_hotel_epigrafe():
+    # Accommodation block: hotels are not gated by ZPAE hostelería rules
+    result = classify_epigrafe("I", "551001")  # HOTELES Y MOTELES CON RESTAURANTE
+    assert result == EpigrafeClassification(status="excluded")
+
+
+def test_excluded_sports_gym_epigrafe():
+    # Recreation/sport block: gyms/sports facilities excluded
+    result = classify_epigrafe("R", "931008")  # ACTIVIDADES DE LOS GIMNASIOS
+    assert result == EpigrafeClassification(status="excluded")
+
+
+def test_excluded_theatre_epigrafe():
+    # Recreation/culture block: theatre deliberately excluded (Clase III Cat.2 gap)
+    result = classify_epigrafe("R", "900003")  # TEATRO Y ACTIVIDADES ESCENICAS REALIZADAS EN DIRECTO
+    assert result == EpigrafeClassification(status="excluded")

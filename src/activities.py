@@ -6,11 +6,12 @@ src/zones.py and docs/data_sources.md for how the two relate).
 
 Only seccion I (Hostelería) and R (Actividades artísticas, recreativas y
 de entretenimiento) contain ZPAE-relevant epígrafes -- everything else is
-"not_applicable". Confirmed against the live API 2026-07-17; see
+"not_applicable". Confirmed against the live API 2026-07-18; see
 docs/superpowers/specs/2026-07-17-stage2-hosteleria-pipeline-design.md
-for the full mapping table and the two documented gaps (Clase III Cat.2
-"salas de conciertos", and hotel bars/restaurants with direct street
-access) that are deliberately left unmapped rather than guessed.
+for the full mapping table. Clase III Cat.2 ("salas de conciertos" / live
+theatre) remains a documented gap: 900003 (theatre/live performance) is
+deliberately excluded rather than guessed, preserving this gap as a known
+decision rather than an unmapped code.
 """
 
 from dataclasses import dataclass
@@ -51,6 +52,39 @@ EXCLUDED_EPIGRAFES = {
     "562904",  # COMEDOR EN CENTROS DE SERVICIOS SOCIALES -- not open to the public
     "562905",  # PREPARACION DE COMIDAS EN HOSPITALES -- not open to the public
     "563006",  # CIBER-CAFE
+
+    # Accommodation -- separate activity type, not gated by ZPAE hostelería/ocio rules
+    "551001",  # HOTELES Y MOTELES CON RESTAURANTE
+    "551002",  # HOTELES Y MOTELES SIN RESTAURANTE
+    "551003",  # HOSTALES
+    "551004",  # APART-HOTELES
+    "551005",  # VIVIENDAS TURISTICAS
+    "552001",  # ALBERGUES JUVENILES Y OTROS ALOJAMIENTOS TURISTICOS DE CORTA ESTANCIA
+    "559001",  # COLEGIOS MAYORES Y RESIDENCIAS DE ESTUDIANTES
+    "559002",  # PENSIONES
+    "559003",  # CASAS DE HUESPEDES
+
+    # Recreation/culture/sport -- no plausible reading under Decreto 184/1998 Clase III/IV/V-9/V-10
+    "900001",  # ACTIVIDADES DE CREACION, ARTISTICAS Y ESPECTACULOS -- too broad/ambiguous, excluded rather than guessed
+    "900002",  # LOCALES DE EXHIBICIONES EROTICAS -- only 1 open record, excluded rather than guessed
+    "900003",  # TEATRO Y ACTIVIDADES ESCENICAS REALIZADAS EN DIRECTO -- plausible Clase III fit but excluded; Clase III Cat.2 remains documented gap
+    "910001",  # ACTIVIDADES DE BIBLIOTECAS, ARCHIVOS, MUSEOS Y DE GALERIAS Y SALAS DE EXPOSICIONES SIN VENTA
+    "910002",  # PARQUES ZOOLOGICOS, JARDINES BOTANICOS Y RESERVAS NATURALES
+    "920001",  # JUEGOS DE AZAR Y APUESTAS DE GESTION PUBLICA O AUTORIZACION ESPECIAL (ESTADO Y ONCE)
+    "920002",  # JUEGOS DE AZAR Y APUESTAS DE GESTION PRIVADA (BINGOS, CASINOS, MAQUINAS TRAGAPERRAS)
+    "931001",  # GESTION DE INSTALACIONES DEPORTIVAS
+    "931002",  # PISCINAS DE USO PUBLICO DE TEMPORADA
+    "931003",  # PISCINAS DE USO PUBLICO CLIMATIZADAS
+    "931004",  # PISCINAS PUBLICAS CLIMATIZADAS/TEMPORADA
+    "931005",  # PISCINA PRIVADA DE TEMPORADA
+    "931008",  # ACTIVIDADES DE LOS GIMNASIOS
+    "931009",  # ACTIVIDADES DE CLUBES DEPORTIVOS Y OTRAS ACTIVIDADES DEPORTIVAS
+    "931010",  # PISCINAS DE COMUNIDADES DE VECINOS DE TEMPORADA
+    "931011",  # PISCINAS DE COMUNIDADES DE VECINOS CLIMATIZADAS
+    "931012",  # ESTABLECIMIENTOS DE EQUITACION
+    "932001",  # CENTROS DE JUEGOS O CELEBRACIONES INFANTILES CON COCINA
+    "932002",  # CENTROS DE JUEGOS O CELEBRACIONES INFANTILES SIN COCINA
+    "932007",  # SALONES DE RECREO Y DIVERSION Y OTRAS ACTIVIDADES RECREATIVAS
 }
 
 
