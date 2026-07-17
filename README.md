@@ -11,6 +11,38 @@ Standalone repo — not part of the Healthy Transport modular stack, though it
 borrows the same conventions (Python, GeoPandas, ETRS89/EPSG:25830 as native CRS,
 reprojecting to EPSG:4326 only for the web layer).
 
+## Status
+
+**Stage 1 (ground truth the rule) is complete.** All four zones' distance
+thresholds are parsed and encoded in [`src/zones.py`](src/zones.py), sourced
+directly from each zone's "Normativa del Plan Zonal Específico" PDF — see
+[`docs/data_sources.md`](docs/data_sources.md) for the full findings,
+including a real service bug in the ArcGIS REST endpoint and a
+court-annulled article in Centro's plan.
+
+## Setup
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+`scripts/01_fetch_zpae.py` downloads the ZPAE zone/classification shapefiles.
+`scripts/02_clip_network_to_zpae.py` needs a separately-downloaded IGR-RT
+geopackage (Comunidad de Madrid extent, `rt_tramo_vial` + `rt_portalpk_p`
+layers) — see `docs/data_sources.md` for where to get it. Neither the
+downloaded data nor the normativa PDFs are committed to this repo (see
+`.gitignore`); the PDFs were sourced manually since the official `Enlace`
+links block scripted fetches (403).
+
+## License
+
+Code is MIT-licensed (see [`LICENSE`](LICENSE)). This does **not** cover the
+underlying datasets (IGN/CNIG's IGR-RT network, Ayuntamiento de Madrid's ZPAE
+and censo de locales data), which remain under their original publishers'
+terms and are not redistributed in this repo.
+
 ## Scope
 
 Four ZPAE zones exist in Madrid as of this writing:
