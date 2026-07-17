@@ -75,3 +75,60 @@ def build_competitor_layer(records: list[dict]) -> CompetitorBuildResult:
         unmapped_count=unmapped_count,
         unmapped_epigrafes=unmapped_epigrafes,
     )
+
+
+def join_candidate_context(
+    addresses: gpd.GeoDataFrame,
+    locals_gdf: gpd.GeoDataFrame,
+    tolerance_m: float,
+) -> gpd.GeoDataFrame:
+    """Nearest-join every candidate address point to the closest local(s)
+    in locals_gdf within tolerance_m. Addresses with no local within
+    tolerance keep all their own columns with null local-side fields
+    (standard left-join semantics), rather than being dropped."""
+    return gpd.sjoin_nearest(
+        addresses,
+        locals_gdf,
+        how="left",
+        max_distance=tolerance_m,
+        distance_col="match_distance_m",
+    )
+
+
+def summarize_candidate_context(
+    joined: gpd.GeoDataFrame, address_id_col: str
+) -> gpd.GeoDataFrame:
+    """Collapse the (possibly multiple-rows-per-address) nearest-join
+    result down to one row per address, summarizing whether a commercial
+    local exists nearby and what it currently does."""
+    summaries = []
+    for address_id, group in joined.groupby(address_id_col, dropna=False):
+        matched = group[group["id_local"].notna()]
+        activity_summary = [
+            {
+                "id_seccion": row["id_seccion"],
+                "desc_epigrafe": row["desc_epigrafe"],
+                "desc_situacion_local": row["desc_situacion_local"],
+            }
+            for _, row in matched.iterrows()
+        ]
+        is_existing_hosteleria = any(
+            classify_epigrafe(row["id_seccion"], row["id_epigrafe"]).status == "mapped"
+            for _, row in matched.iterrows()
+        )
+        summaries.append(
+            {
+                address_id_col: address_id,
+                "geometry": group.iloc[0]["geometry"],
+                "has_commercial_local": len(matched) > 0,
+                "current_activity_summary": activity_summary,
+                "is_existing_hosteleria_class": is_existing_hosteleria,
+            }
+        )
+    result = gpd.GeoDataFrame(summaries, geometry="geometry", crs=joined.crs)
+    # Keep these as native Python bool objects rather than letting pandas
+    # infer a numpy bool dtype column: numpy.bool_ scalars fail `is True`/
+    # `is False` identity checks even though they compare equal.
+    result["has_commercial_local"] = result["has_commercial_local"].astype(object)
+    result["is_existing_hosteleria_class"] = result["is_existing_hosteleria_class"].astype(object)
+    return result
