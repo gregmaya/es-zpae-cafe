@@ -33,9 +33,10 @@ print(f"After id_tramo dedup: {len(walkable)} -> {len(deduped)}")
 
 # nx_from_generic_geopandas builds the graph directly from segment
 # geometry -- no relation table needed (none exists in this download; see
-# design doc). nx_remove_filler_nodes then merges degree-2 nodes
-# (intermediate points that aren't real junctions) into single edges,
-# retaining the merged edge's full path geometry.
+# design doc). nx_consolidate_nodes then merges near-coincident junction
+# nodes. nx_remove_filler_nodes then merges degree-2 nodes (intermediate
+# points that aren't real junctions) into single edges, retaining the merged
+# edge's full path geometry.
 base_graph = cs_io.nx_from_generic_geopandas(deduped)
 
 # Task 2 (see .superpowers/sdd/task-2-report.md) found the raw graph split
@@ -63,6 +64,13 @@ print(f"Base graph: {base_graph.number_of_nodes()} nodes, "
 
 components = list(nx.connected_components(base_graph))
 print(f"Connected components: {len(components)}")
+# After consolidation, 4 size-2 orphan pairs remain (8 of ~32,000 nodes in
+# the final decomposed graph). This was investigated: increasing buffer_dist
+# from 2m to 3m yielded no further improvement, ruling out simple precision
+# gaps. The residual is accepted as a known limitation (likely elevated/
+# pedestrian-bridge segments whose endpoints don't align with the surface
+# network). Stage 4 should flag any candidate/competitor point snapping to
+# these orphan nodes as unreachable, rather than re-deriving this finding.
 if len(components) > 1:
     sizes = sorted((len(c) for c in components), reverse=True)
     print(f"[!] Network is NOT fully connected -- component sizes: {sizes}. "

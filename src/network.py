@@ -48,6 +48,9 @@ def snap_points_to_nearest_node(
     two new columns: nearest_node_id, offset_distance_m -- Stage 4 adds
     this offset back into the final network-distance calculation rather
     than dropping that precision."""
+    # Note: sjoin_nearest can emit multiple rows for a single input point if
+    # two nodes are exactly equidistant, but this did not occur in practice
+    # (row counts matched exactly) and is vanishingly unlikely with ~10m spacing.
     joined = gpd.sjoin_nearest(
         points_gdf, nodes_gdf[["node_id", "geometry"]],
         how="left", distance_col="offset_distance_m",
