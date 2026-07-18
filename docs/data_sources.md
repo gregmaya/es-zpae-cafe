@@ -296,3 +296,82 @@ run against live-fetched data):
   dropped from the output). Saved to `data/processed/
   candidate_addresses_zpae_clip.gpkg` (not committed).
 - Both outputs are in EPSG:25830, consistent with the rest of the project.
+
+## 6. Walkable network graph (Stage 3)
+
+Built with [Cityseer](https://cityseer.benchmarkurbanism.com/) (5.6.1,
+confirmed installed) from `rt_tramo_vial_zpae_clip.gpkg` (Stage 1's clipped
+4,380 IGR-RT street segments). Logic in `src/network.py`, orchestration in
+`scripts/05_build_network_graph.py` and `scripts/06_snap_points_to_network.py`.
+
+**The node/relation table the original plan assumed
+(`rrt_nodoctra_tramo`) does not exist in this download.** Only a standalone
+`rt_nodoctra_p` nodes layer and the raw segments are present. The graph is
+built directly from segment geometry instead (Cityseer's
+`nx_from_generic_geopandas`, matching segments to nodes by endpoint
+coordinate) — the standard approach for OSM-style networks, not a
+project-specific workaround.
+
+**Underground segments are mistagged as pedestrian-accessible.** 66 of
+4,380 segments are tagged `situacion=Subterráneo`, and most carry the
+vehicle-access code for "pedestrian+bike+vehicle" — but manual inspection
+confirmed these are real Madrid car tunnels (Princesa, Bailén, San
+Vicente, the A-5/A-6/M-30 ring), not places pedestrians walk. Excluded
+regardless of the vehicle-access tag. Elevated segments (10, e.g. the
+Segovia viaduct) are kept — real pedestrian routes.
+
+**`rt_tramo_vial` has duplicate rows by design** — it's a join of segments
+to street names, so a segment shared by two named streets (a corner, or a
+bike path overlapping a named street) appears twice under the same
+`id_tramo`. Deduplicated before graph-building (8 such pairs in the clip).
+
+**Graph is undirected.** `sentido` (one-way/two-way) is a vehicle-routing
+attribute; the Normativa itself measures distance "door to door along the
+axis of streets," not vehicle routing — pedestrians walk both directions
+on a one-way street.
+
+**Connectivity finding, investigated and fixed.** The first build produced
+27 connected components instead of 1 (a dominant component with 97.9% of
+nodes, plus 26 tiny orphan components). Confirmed not a clipping-boundary
+artifact (orphan points sampled 60–422m inside the study-area buffer, two
+literally inside the ZPAE Centro zone). Root cause: sub-metre
+coordinate-precision mismatches at shared junctions in the source
+geometry. Fixed using Cityseer's `nx_consolidate_nodes(buffer_dist=2)`
+(a conservative distance, well below the library's own default of 12m,
+chosen to close precision gaps without merging real distinct junctions),
+reducing it to 5 components (99.7% in the dominant component). The
+remaining 4 orphan pairs (8 nodes) didn't respond to a larger buffer
+(3m tried, no further improvement) and are accepted as a known residual —
+most likely elevated/pedestrian-bridge segments whose endpoints don't
+align with the surface network. Documented directly in
+`scripts/05_build_network_graph.py` so Stage 4 doesn't need to re-derive
+this: any candidate/competitor point snapping to one of these orphan
+nodes should be flagged as unreachable via the network, not silently
+given a distance computed within an isolated 2-node fragment.
+
+**Decomposition at 10m** via Cityseer's `nx_decompose`, chosen over 5m:
+worst-case node-snapping offset at 10m is ~5m, already only ~17% of the
+tightest real threshold in scope (AZCA's 30m baja-to-baja), and other
+error sources in the pipeline turned out to be larger anyway (see next
+finding) — going finer would have doubled the graph size for accuracy
+smaller than the existing error budget.
+
+**Point-to-node snapping offset is larger than decomposition alone would
+predict — investigated, not a bug.** Snapping Stage 2's two point layers
+onto the decomposed graph's nearest nodes gave offset distances with
+median ~8.5m (competitors) / ~5.8m (candidates) and p95 ~21m / ~17m —
+above the naive "well under 10m" expectation. Investigated by
+independently measuring point-to-raw-street-*line* distance (before any
+decomposition or snapping): nearly identical to the reported offset
+distribution (median 8.0m, p95 20.5m for competitors). This proves the
+offset is dominated by genuine geographic distance between the
+address/POI points and the street centerline (building setback, plaza
+addresses — normal for Madrid geocoded data), with decomposition/snapping
+contributing only ~0.5m on top, exactly as designed. This offset is
+tracked per point (`offset_distance_m`) for Stage 4 to add back into the
+final network-distance calculation, not dropped.
+
+Final outputs (EPSG:25830, `data/processed/`, not committed):
+`network_graph_zpae.pickle` (31,931 nodes / 33,514 edges, decomposed),
+`hosteleria_competitors_zpae_snapped.gpkg` (5,341 points),
+`candidate_addresses_zpae_snapped.gpkg` (13,876 points).

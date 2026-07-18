@@ -13,9 +13,10 @@ reprojecting to EPSG:4326 only for the web layer).
 
 ## Status
 
-**In plain terms: we know the actual rules, and we've mapped where every
-bar, café, and nightlife venue is in the four zones.** Two stages down,
-four to go before this becomes a usable map.
+**In plain terms: we know the actual rules, we've mapped where every bar,
+café, and nightlife venue is in the four zones, and we now have an actual
+walkable street network to measure distances over.** Three stages down,
+three to go before this becomes a usable map.
 
 - **Stage 1 — done.** Read the official council documents (not blog posts
   or summaries) for all four zones to find the real minimum-distance rules.
@@ -36,9 +37,16 @@ four to go before this becomes a usable map.
   all), so the tool can later answer "could a café open *here*" for any
   address — not only ones that happen to be vacant right now. Full
   breakdown in `docs/data_sources.md`.
-- **Stages 3–6 — not started yet:** building the actual street network for
-  distance calculations, computing pass/fail per address, and the final
-  map website.
+- **Stage 3 — done.** Turned the raw street-segment data into an actual
+  connected walking network — the streets and pavements someone would walk
+  along, not a straight line through buildings. Along the way we found (and
+  fixed) a real gap: some street junctions in the official data don't quite
+  line up with each other, which would have silently split the network into
+  disconnected islands. Every existing venue and every candidate address
+  from Stage 2 is now attached to its nearest point on this network, ready
+  for the actual distance math in Stage 4.
+- **Stages 4–6 — not started yet:** computing real walking distances and
+  pass/fail per address, then the final map website.
 
 ## Setup
 
@@ -54,7 +62,9 @@ geopackage (Comunidad de Madrid extent, `rt_tramo_vial` + `rt_portalpk_p`
 layers) — see `docs/data_sources.md` for where to get it. Neither the
 downloaded data nor the normativa PDFs are committed to this repo (see
 `.gitignore`); the PDFs were sourced manually since the official `Enlace`
-links block scripted fetches (403).
+links block scripted fetches (403). `scripts/03`–`06` pull Madrid's business
+registry and build the walkable network graph; run them in numeric order
+after 01/02, each depends on the previous ones' output.
 
 ## License
 
@@ -88,11 +98,14 @@ missing — it wasn't, that text was just outdated; see
 2. **Data pipeline** — ingest ZPAE polygons, censo de locales + terrazas (filtered
    to hostelería epígrafes), Catastro/Callejero address points. Reconcile CRS
    (native EPSG:25830).
-3. **Network graph** — build a Cityseer-compatible graph from IGN/CNIG's
-   IGR-RT official street network (`rt_tramo_l` + node/relation tables,
-   filtered to urban, Ayuntamiento-owned, pedestrian-accessible segments —
-   see docs/data_sources.md) for the four zones combined; snap existing
-   hostelería locations and candidate address points onto it.
+3. **Network graph** — done. Built a Cityseer-compatible walkable graph
+   from IGN/CNIG's IGR-RT street segments (filtered to exclude car tunnels,
+   vehicle-only, and motorway-class segments; the node/relation table the
+   original plan assumed doesn't exist in this download, so topology is
+   built directly from segment geometry instead), decomposed to 10m
+   resolution for accurate distance snapping. Existing hostelería locations
+   and candidate address points from Stage 2 are snapped onto it. See
+   `src/network.py` and `docs/data_sources.md`.
 4. **Distance engine** — per candidate address: network distance (not euclidean)
    to nearest hostelería local, evaluated against the classification-specific
    threshold for that street, pass/fail + margin in metres.
