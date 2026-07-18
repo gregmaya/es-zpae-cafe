@@ -37,6 +37,26 @@ print(f"After id_tramo dedup: {len(walkable)} -> {len(deduped)}")
 # (intermediate points that aren't real junctions) into single edges,
 # retaining the merged edge's full path geometry.
 base_graph = cs_io.nx_from_generic_geopandas(deduped)
+
+# Task 2 (see .superpowers/sdd/task-2-report.md) found the raw graph split
+# into 27 connected components: one dominant component (2,581 nodes,
+# 97.9%) plus 26 tiny orphans (24 of size 2, 2 of size 4). Root cause:
+# sub-metre coordinate-precision mismatches in the source IGR-RT geometry
+# -- two segments that should share an exact junction node have endpoints
+# differing by a tiny epsilon, so cityseer's exact-coordinate node-matching
+# treats them as separate, disconnected nodes (not a clipping-boundary
+# artifact -- orphan points sit 60-422m inside the study-area buffer, some
+# inside the ZPAE Centro zone itself). nx_consolidate_nodes merges nodes
+# within buffer_dist of each other, closing these gaps. We deliberately
+# override the library default (buffer_dist=12, tuned for OSM-style
+# intersection cleanup) with a conservative buffer_dist=2: large enough to
+# close sub-metre digitization gaps, small enough that it won't merge
+# genuinely distinct junctions, which are almost always well over 2m apart
+# even in the densest parts of central Madrid. Run this before filler-node
+# removal / decomposition so it targets the original junction-precision
+# issue directly, rather than an already-simplified/subdivided graph.
+base_graph = graphs.nx_consolidate_nodes(base_graph, buffer_dist=2)
+
 base_graph = graphs.nx_remove_filler_nodes(base_graph)
 print(f"Base graph: {base_graph.number_of_nodes()} nodes, "
       f"{base_graph.number_of_edges()} edges.")
