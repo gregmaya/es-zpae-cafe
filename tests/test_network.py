@@ -1,7 +1,8 @@
 import geopandas as gpd
-from shapely.geometry import LineString
+import networkx as nx
+from shapely.geometry import LineString, Point
 
-from network import dedupe_by_id_tramo, filter_walkable
+from network import dedupe_by_id_tramo, filter_walkable, nodes_gdf_from_graph, snap_points_to_nearest_node
 
 
 def _segments_gdf(rows):
@@ -58,3 +59,33 @@ def test_dedupe_by_id_tramo_keeps_distinct():
     gdf = _segments_gdf([("1", 1, "111 ", 2000), ("2", 1, "111 ", 2000)])
     result = dedupe_by_id_tramo(gdf)
     assert len(result) == 2
+
+
+def test_nodes_gdf_from_graph():
+    g = nx.MultiGraph()
+    g.add_node("x0.0-y0.0", x=0.0, y=0.0)
+    g.add_node("x10.0-y0.0", x=10.0, y=0.0)
+
+    result = nodes_gdf_from_graph(g, crs="EPSG:25830")
+
+    assert len(result) == 2
+    assert set(result["node_id"]) == {"x0.0-y0.0", "x10.0-y0.0"}
+    assert result.crs.to_string() == "EPSG:25830"
+
+
+def test_snap_points_to_nearest_node():
+    nodes_gdf = gpd.GeoDataFrame(
+        {"node_id": ["n1", "n2"]},
+        geometry=[Point(0, 0), Point(100, 100)],
+        crs="EPSG:25830",
+    )
+    points_gdf = gpd.GeoDataFrame(
+        {"point_id": ["p1"]},
+        geometry=[Point(3, 4)],  # distance 5 from n1 (3-4-5 triangle)
+        crs="EPSG:25830",
+    )
+
+    result = snap_points_to_nearest_node(points_gdf, nodes_gdf)
+
+    assert result.iloc[0]["nearest_node_id"] == "n1"
+    assert result.iloc[0]["offset_distance_m"] == 5.0
