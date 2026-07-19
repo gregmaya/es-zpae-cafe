@@ -126,3 +126,57 @@ def test_find_nearest_competitor_tie_break_lowest_id_local():
         graph, "n0", index, cutoff_m=350, candidate_offset_m=0.0, strict=False,
     )
     assert result.id_local == "2"
+
+
+def test_find_nearest_competitor_strict_adds_both_offsets():
+    graph = _line_graph()
+    index = {
+        "n2": [{
+            "id_local": "1", "rotulo": "Bar Uno", "desc_epigrafe": "BAR SIN COCINA",
+            "classification": "moderada", "offset_distance_m": 5.0, "x": 20.0, "y": 0.0,
+        }],
+    }
+    result = find_nearest_competitor(
+        graph, "n0", index, cutoff_m=350, candidate_offset_m=3.0, strict=True,
+    )
+    # network distance 20m + candidate offset 3m + competitor offset 5m = 28m
+    assert result.distance_m == 28.0
+
+
+def test_find_nearest_competitor_strict_can_flip_which_competitor_wins():
+    graph = _line_graph()
+    index = {
+        "n1": [{  # network 10m + huge own offset -> strict total 110m
+            "id_local": "1", "rotulo": "Bar Uno", "desc_epigrafe": "BAR SIN COCINA",
+            "classification": "moderada", "offset_distance_m": 100.0, "x": 10.0, "y": 0.0,
+        }],
+        "n2": [{  # network 20m + small own offset -> strict total 21m
+            "id_local": "2", "rotulo": "Bar Dos", "desc_epigrafe": "CAFETERIA",
+            "classification": "moderada", "offset_distance_m": 1.0, "x": 20.0, "y": 0.0,
+        }],
+    }
+    lenient = find_nearest_competitor(
+        graph, "n0", index, cutoff_m=350, candidate_offset_m=0.0, strict=False,
+    )
+    strict = find_nearest_competitor(
+        graph, "n0", index, cutoff_m=350, candidate_offset_m=0.0, strict=True,
+    )
+    assert lenient.id_local == "1"   # closer by raw network distance
+    assert strict.id_local == "2"    # closer once real-world offsets are included
+    assert strict.distance_m == 21.0
+
+
+def test_find_nearest_competitor_strict_respects_cutoff_after_offsets():
+    graph = _line_graph()
+    index = {
+        "n2": [{  # network 20m + offsets push it just past a 25m cutoff
+            "id_local": "1", "rotulo": "Bar Uno", "desc_epigrafe": "BAR SIN COCINA",
+            "classification": "moderada", "offset_distance_m": 4.0, "x": 20.0, "y": 0.0,
+        }],
+    }
+    result = find_nearest_competitor(
+        graph, "n0", index, cutoff_m=25, candidate_offset_m=2.0, strict=True,
+    )
+    # 20 + 2 + 4 = 26m, past cutoff -- must be excluded even though the
+    # raw network distance (20m) was within cutoff.
+    assert result is None
