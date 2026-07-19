@@ -110,7 +110,7 @@ gdf already loaded.
 
 ## Output schema
 
-24 new columns on `distance_evaluation_results.gpkg`, four groups of six:
+28 new columns on `distance_evaluation_results.gpkg`, four groups of seven:
 
 ```
 strict_nearest_binding_{id_local,rotulo,desc_epigrafe,classification,distance_m,x,y}

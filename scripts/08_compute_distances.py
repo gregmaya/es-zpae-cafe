@@ -132,20 +132,24 @@ for _, row in evaluable.iterrows():
             "distance_m": found.distance_m, "x": found.x, "y": found.y,
         }
 
-    nearest_lookups = {
-        "strict_nearest_binding": _lookup(True, evaluation.strict_binding_classification),
-        "lenient_nearest_binding": _lookup(False, evaluation.lenient_binding_classification),
-        "strict_nearest_overall": _lookup(True, None),
-        "lenient_nearest_overall": _lookup(False, None),
-    }
     # Binding-classification lookups are meaningless when there's no binding
     # classification (rule doesn't apply to this street, or prohibited
     # outright) -- force them null rather than looking up an arbitrary
-    # classification.
-    if evaluation.strict_binding_classification is None:
-        nearest_lookups["strict_nearest_binding"] = _lookup(True, "__none__")
-    if evaluation.lenient_binding_classification is None:
-        nearest_lookups["lenient_nearest_binding"] = _lookup(False, "__none__")
+    # classification, by using the "__none__" sentinel filter directly
+    # (avoids running a wasted nearest-of-any-classification search first).
+    strict_binding_filter = evaluation.strict_binding_classification
+    if strict_binding_filter is None:
+        strict_binding_filter = "__none__"
+    lenient_binding_filter = evaluation.lenient_binding_classification
+    if lenient_binding_filter is None:
+        lenient_binding_filter = "__none__"
+
+    nearest_lookups = {
+        "strict_nearest_binding": _lookup(True, strict_binding_filter),
+        "lenient_nearest_binding": _lookup(False, lenient_binding_filter),
+        "strict_nearest_overall": _lookup(True, None),
+        "lenient_nearest_overall": _lookup(False, None),
+    }
 
     result_row = {
         "id_porpk": row["id_porpk"],
