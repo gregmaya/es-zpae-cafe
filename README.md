@@ -53,16 +53,20 @@ before this becomes a usable map.
   exact wording is a bit ambiguous about whether the walk from a building's
   front door out to the street should count, we computed it both ways —
   once including that short extra walk, once without — rather than quietly
-  picking one reading. Of the 13,876 candidate addresses, 9,838 are both
-  inside a ZPAE zone and close enough to a street with a known
-  classification to be evaluable at all (the rest fall outside the zones'
-  scope entirely). Of those, only about 1 in 8 — roughly 1,250 — actually
-  clear the distance bar; 1,939 are banned outright no matter the distance,
-  because they'd sit on the loudest ("Alta") kind of street, which three of
-  the four zones forbid new hostelería on regardless of how far from
-  anything else it is. The two ways of measuring distance agreed almost
-  everywhere — only 32 out of 9,838 addresses flipped between pass and fail
-  depending on which convention was used.
+  picking one reading. Each candidate's result now also identifies the
+  specific nearest competitor (name, activity type, location) behind each
+  distance figure, not just the number — so the eventual UI can explain
+  *why* an address passes or fails, not just *whether*. Of the 13,876
+  candidate addresses, 9,838 are both inside a ZPAE zone and close enough
+  to a street with a known classification to be evaluable at all (the rest
+  fall outside the zones' scope entirely). Of those, only about 1 in 8 —
+  roughly 1,250 — actually clear the distance bar; 1,939 are banned
+  outright no matter the distance, because they'd sit on the loudest
+  ("Alta") kind of street, which three of the four zones forbid new
+  hostelería on regardless of how far from anything else it is. The two
+  ways of measuring distance agreed almost everywhere — only 32 out of
+  9,838 addresses flipped between pass and fail depending on which
+  convention was used.
 - **Stages 5–6 — not started yet:** baking these results into a static
   precomputed layer, then the final map website.
 

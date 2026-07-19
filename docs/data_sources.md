@@ -459,7 +459,19 @@ on the current data's offset distribution, not something enforced by an
 assertion in the code. Worth re-checking if this pipeline is ever re-run
 against updated source data with different geocoding characteristics.
 
+**Nearest-competitor identity (Task 5 addition).** The four lookup combinations
+(strict/lenient × binding/overall) now also return the specific nearest
+competitor's identity: `id_local`, `rotulo`, `desc_epigrafe`, `classification`,
+`distance_m`, `x`, `y` — yielding 28 new columns total (4 groups of 7 fields
+per candidate). When no competitor is found within the 350m search cutoff, or
+when the relevant binding classification doesn't apply to a candidate, all
+seven fields for that group are null together. Cross-reference
+`docs/superpowers/specs/2026-07-19-nearest-competitor-identity-design.md` for
+the full specification and rationale.
+
 Final output (EPSG:25830, `data/processed/`, not committed):
 `distance_evaluation_results.gpkg` — one row per evaluable candidate, with
 strict/lenient pass-fail, margin in metres, and the binding (tightest)
-classification for each interpretation.
+classification for each interpretation, plus the nearest competitor's identity
+(name, activity type, classification, distance, location) for all four lookup
+combinations.
