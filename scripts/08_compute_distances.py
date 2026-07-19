@@ -25,6 +25,7 @@ from distance_engine import (
     build_lenient_competitor_points,
     evaluate_candidate,
 )
+from nearest_competitor import build_competitor_node_index, find_nearest_competitor
 from network import nodes_gdf_from_graph
 from zones import ZONES
 
@@ -46,6 +47,10 @@ print(f"Network: {len(nodes_gdf)} nodes.")
 
 candidates = gpd.read_file(PROCESSED_DIR / "candidate_addresses_zpae_tagged.gpkg")
 competitors = gpd.read_file(PROCESSED_DIR / "hosteleria_competitors_zpae_tagged.gpkg")
+
+competitor_index = build_competitor_node_index(
+    competitors[competitors["classification"].notna()]
+)
 
 # --- Strict pass: competitors' real positions (cityseer folds their own
 # offset in automatically via edge-assignment) ---
@@ -109,7 +114,40 @@ for _, row in evaluable.iterrows():
         strict_distances=strict_distances,
         lenient_distances=lenient_distances,
     )
-    results.append({
+
+    candidate_offset_m = row["offset_distance_m"]
+
+    def _lookup(strict, classification_filter):
+        found = find_nearest_competitor(
+            graph, node_id, competitor_index,
+            cutoff_m=SEARCH_CUTOFF_M, candidate_offset_m=candidate_offset_m,
+            strict=strict, classification_filter=classification_filter,
+        )
+        if found is None:
+            return {"id_local": None, "rotulo": None, "desc_epigrafe": None,
+                    "classification": None, "distance_m": None, "x": None, "y": None}
+        return {
+            "id_local": found.id_local, "rotulo": found.rotulo,
+            "desc_epigrafe": found.desc_epigrafe, "classification": found.classification,
+            "distance_m": found.distance_m, "x": found.x, "y": found.y,
+        }
+
+    nearest_lookups = {
+        "strict_nearest_binding": _lookup(True, evaluation.strict_binding_classification),
+        "lenient_nearest_binding": _lookup(False, evaluation.lenient_binding_classification),
+        "strict_nearest_overall": _lookup(True, None),
+        "lenient_nearest_overall": _lookup(False, None),
+    }
+    # Binding-classification lookups are meaningless when there's no binding
+    # classification (rule doesn't apply to this street, or prohibited
+    # outright) -- force them null rather than looking up an arbitrary
+    # classification.
+    if evaluation.strict_binding_classification is None:
+        nearest_lookups["strict_nearest_binding"] = _lookup(True, "__none__")
+    if evaluation.lenient_binding_classification is None:
+        nearest_lookups["lenient_nearest_binding"] = _lookup(False, "__none__")
+
+    result_row = {
         "id_porpk": row["id_porpk"],
         "zpae_zone": row["zpae_zone"],
         "classification": row["classification"],
@@ -122,7 +160,11 @@ for _, row in evaluable.iterrows():
         "prohibited_outright": evaluation.prohibited_outright,
         "interpretations_disagree": evaluation.interpretations_disagree,
         "geometry": row["geometry"],
-    })
+    }
+    for prefix, fields in nearest_lookups.items():
+        for field_name, value in fields.items():
+            result_row[f"{prefix}_{field_name}"] = value
+    results.append(result_row)
 
 results_gdf = gpd.GeoDataFrame(results, geometry="geometry", crs=CRS)
 print(f"\nResults: {int(results_gdf['strict_pass'].sum())} pass (strict), "
