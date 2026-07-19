@@ -2,7 +2,12 @@ import geopandas as gpd
 import networkx as nx
 from shapely.geometry import Point, LineString
 
-from nearest_competitor import build_competitor_node_index, find_nearest_competitor
+from nearest_competitor import (
+    build_competitor_node_index,
+    compute_reachable_network_distances,
+    find_nearest_competitor,
+    select_nearest_competitor,
+)
 
 
 def _competitors_gdf(rows):
@@ -180,3 +185,26 @@ def test_find_nearest_competitor_strict_respects_cutoff_after_offsets():
     # 20 + 2 + 4 = 26m, past cutoff -- must be excluded even though the
     # raw network distance (20m) was within cutoff.
     assert result is None
+
+
+def test_select_nearest_competitor_matches_find_nearest_competitor():
+    graph = _line_graph()
+    index = {
+        "n2": [{
+            "id_local": "1", "rotulo": "Bar Uno", "desc_epigrafe": "BAR SIN COCINA",
+            "classification": "moderada", "offset_distance_m": 5.0, "x": 20.0, "y": 0.0,
+        }],
+        "n3": [{
+            "id_local": "2", "rotulo": "Bar Dos", "desc_epigrafe": "CAFETERIA",
+            "classification": "moderada", "offset_distance_m": 0.0, "x": 30.0, "y": 0.0,
+        }],
+    }
+    network_distances = compute_reachable_network_distances(graph, "n0", cutoff_m=350)
+    via_composition = select_nearest_competitor(
+        network_distances, index,
+        cutoff_m=350, candidate_offset_m=0.0, strict=False,
+    )
+    via_wrapper = find_nearest_competitor(
+        graph, "n0", index, cutoff_m=350, candidate_offset_m=0.0, strict=False,
+    )
+    assert via_composition == via_wrapper

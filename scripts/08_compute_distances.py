@@ -25,7 +25,11 @@ from distance_engine import (
     build_lenient_competitor_points,
     evaluate_candidate,
 )
-from nearest_competitor import build_competitor_node_index, find_nearest_competitor
+from nearest_competitor import (
+    build_competitor_node_index,
+    compute_reachable_network_distances,
+    select_nearest_competitor,
+)
 from network import nodes_gdf_from_graph
 from zones import ZONES
 
@@ -117,9 +121,17 @@ for _, row in evaluable.iterrows():
 
     candidate_offset_m = row["offset_distance_m"]
 
+    # Run the bounded Dijkstra search from this candidate's node exactly
+    # once, then scan its result for all four strict/lenient x
+    # binding/overall lookups below, instead of re-running the search per
+    # lookup.
+    network_distances = compute_reachable_network_distances(
+        graph, node_id, cutoff_m=SEARCH_CUTOFF_M,
+    )
+
     def _lookup(strict, classification_filter):
-        found = find_nearest_competitor(
-            graph, node_id, competitor_index,
+        found = select_nearest_competitor(
+            network_distances, competitor_index,
             cutoff_m=SEARCH_CUTOFF_M, candidate_offset_m=candidate_offset_m,
             strict=strict, classification_filter=classification_filter,
         )

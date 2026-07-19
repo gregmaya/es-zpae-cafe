@@ -469,6 +469,25 @@ seven fields for that group are null together. Cross-reference
 `docs/superpowers/specs/2026-07-19-nearest-competitor-identity-design.md` for
 the full specification and rationale.
 
+**Known limitation: strict-mode offset approximation.** The strict-mode
+nearest-competitor lookup approximates each competitor's real-world offset
+using its precomputed node-offset (`offset_distance_m`, the distance from
+the competitor's real position to its nearest snapped network node — see
+`src/network.py:snap_points_to_nearest_node`). The pass/fail engine above,
+by contrast, folds each competitor's offset in via cityseer's own internal
+edge-assignment (a perpendicular projection onto the nearest network edge,
+not the nearest node) when computing the strict `distance_m`/margin. Both
+are legitimate offset conventions, but they can diverge slightly — bounded
+by roughly the ~10m node-decomposition spacing used when building the
+walkable graph (`scripts/05_build_network_graph.py`'s `DECOMPOSE_MAX_M`).
+In practice this means the strict-mode nearest-competitor `distance_m` is a
+close approximation of, not an identical value to, the strict
+distance/margin already computed by the pass/fail engine, and in rare
+boundary cases near the 350m search cutoff or a rule's exact threshold, the
+reported "nearest binding competitor" identity should be treated as the
+practically-correct one for UI purposes, not a byte-for-byte guarantee of
+exactly which competitor produced the numeric margin.
+
 Final output (EPSG:25830, `data/processed/`, not committed):
 `distance_evaluation_results.gpkg` — one row per evaluable candidate, with
 strict/lenient pass-fail, margin in metres, and the binding (tightest)
