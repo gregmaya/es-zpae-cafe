@@ -14,9 +14,10 @@ reprojecting to EPSG:4326 only for the web layer).
 ## Status
 
 **In plain terms: we know the actual rules, we've mapped where every bar,
-café, and nightlife venue is in the four zones, and we now have an actual
-walkable street network to measure distances over.** Three stages down,
-three to go before this becomes a usable map.
+café, and nightlife venue is in the four zones, we have an actual walkable
+street network to measure distances over, and we've now actually run the
+distance math for every candidate address.** Four stages down, two to go
+before this becomes a usable map.
 
 - **Stage 1 — done.** Read the official council documents (not blog posts
   or summaries) for all four zones to find the real minimum-distance rules.
@@ -45,8 +46,25 @@ three to go before this becomes a usable map.
   disconnected islands. Every existing venue and every candidate address
   from Stage 2 is now attached to its nearest point on this network, ready
   for the actual distance math in Stage 4.
-- **Stages 4–6 — not started yet:** computing real walking distances and
-  pass/fail per address, then the final map website.
+- **Stage 4 — done.** For every candidate address, measured the actual
+  walking distance to the nearest existing café/bar of each street-loudness
+  classification that matters for that address's zone, then used those
+  distances (plus a margin) to work out a pass/fail. Because the rule's
+  exact wording is a bit ambiguous about whether the walk from a building's
+  front door out to the street should count, we computed it both ways —
+  once including that short extra walk, once without — rather than quietly
+  picking one reading. Of the 13,876 candidate addresses, 9,838 are both
+  inside a ZPAE zone and close enough to a street with a known
+  classification to be evaluable at all (the rest fall outside the zones'
+  scope entirely). Of those, only about 1 in 8 — roughly 1,250 — actually
+  clear the distance bar; 1,939 are banned outright no matter the distance,
+  because they'd sit on the loudest ("Alta") kind of street, which three of
+  the four zones forbid new hostelería on regardless of how far from
+  anything else it is. The two ways of measuring distance agreed almost
+  everywhere — only 32 out of 9,838 addresses flipped between pass and fail
+  depending on which convention was used.
+- **Stages 5–6 — not started yet:** baking these results into a static
+  precomputed layer, then the final map website.
 
 ## Setup
 
@@ -106,9 +124,14 @@ missing — it wasn't, that text was just outdated; see
    resolution for accurate distance snapping. Existing hostelería locations
    and candidate address points from Stage 2 are snapped onto it. See
    `src/network.py` and `docs/data_sources.md`.
-4. **Distance engine** — per candidate address: network distance (not euclidean)
-   to nearest hostelería local, evaluated against the classification-specific
-   threshold for that street, pass/fail + margin in metres.
+4. **Distance engine** — done. For every evaluable candidate address, computed
+   network distance (not euclidean) to the nearest hostelería local of each
+   relevant classification, evaluated against the classification-specific
+   threshold for that street, pass/fail + margin in metres. Computed under
+   two distance conventions (with and without the building-door-to-street
+   offset, since the Normativa's wording doesn't cleanly resolve which one
+   applies) rather than picking one silently. See `src/distance_engine.py`
+   and `docs/data_sources.md`.
 5. **Precompute** — run the engine over every address point in the four zones,
    bake to a static GeoJSON/vector-tile scoring layer.
 6. **Web app** — Leaflet/MapLibre static site: building-by-building shading +

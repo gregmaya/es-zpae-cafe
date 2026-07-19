@@ -375,3 +375,91 @@ Final outputs (EPSG:25830, `data/processed/`, not committed):
 `network_graph_zpae.pickle` (31,931 nodes / 33,514 edges, decomposed),
 `hosteleria_competitors_zpae_snapped.gpkg` (5,341 points),
 `candidate_addresses_zpae_snapped.gpkg` (13,876 points).
+
+## 7. Distance engine (Stage 4)
+
+**Zone + street classification tagging.** Every candidate and competitor
+point is tagged with (a) its ZPAE zone, via point-in-polygon against
+`zpae_ambitos.geojson`, and (b) its nearest classified street's
+alta/moderada/baja/sin_superacion label, via nearest-line match against
+`zpae_clasificacion.geojson` within a 30m tolerance — chosen because
+zone-interior points are almost always within a few metres of a classified
+street in the real data, so 30m is a generous ceiling rather than a tight
+fit. Logic in `src/zone_tagging.py`, orchestrated by
+`scripts/07_tag_zones_and_classifications.py`.
+
+**Real data-quality finding, not a Stage 4 bug.**
+`hosteleria_competitors_zpae_snapped.gpkg` has 5,341 rows but only 5,001
+unique `id_local` values — 340 duplicate rows across 308 businesses (same
+business, identical coordinates and attributes, appearing more than once).
+Traced to Stage 2's source census data having repeat records for the same
+business. Not worth reopening Stage 2 to fix at the source, since it
+doesn't affect nearest-distance correctness (duplicate rows sit at
+identical positions) — it's absorbed automatically as a side effect of the
+classification-tagging step's tie-breaking dedup, below.
+
+**Tie-breaking rule.** When a point is equidistant to differently-classified
+street segments, or has duplicate source rows, the more restrictive
+classification wins (alta > moderada > baja > sin_superacion), grounded in
+Art. 6 of the Normativa ("la zona más restrictiva" governs when there's
+ambiguity).
+
+**Real tagging results.** Candidates: 13,876 total, 9,926 fall inside a ZPAE
+zone polygon, 10,080 are within 30m of a classified street, 9,838 satisfy
+both (fully evaluable). Competitors: 5,341 raw rows / 5,001 unique
+businesses, 3,776 inside a zone, 3,893 classified — the classified count
+exceeding the in-zone count is expected and correct (see cross-zone
+decision below), not a bug.
+
+**Cross-zone competitor counting — a deliberate interpretive decision, not
+a default.** The Normativa text is genuinely ambiguous about whether a
+competitor sitting in a different (but nearby) ZPAE zone than the candidate
+should count toward the candidate's distance check. The project's own
+decision, confirmed with the project owner: yes, any nearby competitor
+counts regardless of which zone it's in — only the candidate's own zone
+determines which threshold rule applies. This is why competitors are gated
+only on having a known classification, never on being inside any
+particular zone.
+
+**Dual distance interpretation.** The Normativa measures distance "door to
+door," which arguably should include the walk from a building's door to
+the street network — but this reading is genuinely disputable. Rather than
+picking one interpretation silently, Stage 4 computes both: "strict"
+includes the offset from each address point to the street network (both
+the candidate's own and the competitor's own), "lenient" measures network
+distance only. Computed via two separate
+`cityseer.metrics.layers.compute_accessibilities` passes — the
+competitor's own offset is folded in automatically by cityseer's
+edge-assignment for the "strict" pass; a synthetic competitor layer placed
+at exactly the snapped network node position (zero offset) is used for the
+"lenient" pass. Both are reported, and cases where they disagree (32 out of
+9,838 evaluated candidates) are flagged rather than resolved by picking a
+side. Logic in `src/distance_engine.py`, orchestrated by
+`scripts/08_compute_distances.py`.
+
+**Real evaluation results.** 9,838 candidates evaluated; strict
+interpretation: 1,251 pass / 8,587 fail; lenient: 1,219 pass / 8,619 fail;
+32 disagree between the two — all in the direction of strict-pass /
+lenient-fail, since adding the offset walk can only increase the measured
+distance, never decrease it, so this is the mathematically expected
+direction, not a red flag. 1,939 candidates are banned outright regardless
+of distance (all are `alta`-classified in Centro, Gaztambide, or
+Trafalgar-Ríos Rosas — the three zones that ban Alta-classified hostelería
+outright; AZCA has no Alta chapter at all and contributes zero to this
+count).
+
+**A subtlety worth flagging for future readers.** The search cutoff for the
+accessibility computation was set to 350m, comfortably above the largest
+real threshold in scope (300m, used in Centro). `compute_accessibilities`'s
+own internal `max_netw_assign_dist` (default 100m) caps how far a
+competitor's real position can be from the network and still be included
+in the "strict" pass — verified safe for this dataset (max real competitor
+offset found: 61.6m, well under 100m), but this is an implicit dependency
+on the current data's offset distribution, not something enforced by an
+assertion in the code. Worth re-checking if this pipeline is ever re-run
+against updated source data with different geocoding characteristics.
+
+Final output (EPSG:25830, `data/processed/`, not committed):
+`distance_evaluation_results.gpkg` — one row per evaluable candidate, with
+strict/lenient pass-fail, margin in metres, and the binding (tightest)
+classification for each interpretation.
