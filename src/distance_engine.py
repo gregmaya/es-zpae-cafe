@@ -7,6 +7,8 @@ docs/superpowers/specs/2026-07-19-stage4-distance-engine-design.md.
 
 from dataclasses import dataclass
 
+import geopandas as gpd
+
 
 @dataclass(frozen=True)
 class EvaluationResult:
@@ -73,4 +75,34 @@ def evaluate_candidate(
         lenient_binding_classification=lenient_binding,
         prohibited_outright=False,
         interpretations_disagree=(strict_pass != lenient_pass),
+    )
+
+
+def build_classification_landuse_gdf(competitors_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Filter to competitors with a known classification, ready to feed
+    to cityseer's compute_accessibilities as the 'strict' landuse layer
+    -- their own real positions, with each competitor's own offset from
+    the network folded in automatically by cityseer's internal
+    edge-assignment."""
+    classified = competitors_gdf[competitors_gdf["classification"].notna()]
+    return classified[["classification", "geometry"]].reset_index(drop=True)
+
+
+def build_lenient_competitor_points(
+    competitors_gdf: gpd.GeoDataFrame, nodes_gdf: gpd.GeoDataFrame
+) -> gpd.GeoDataFrame:
+    """Build the 'lenient' landuse layer: synthetic points placed exactly
+    at each classified competitor's already-snapped network node
+    (offset zero by construction), for the network-distance-only
+    interpretation. nodes_gdf must have 'node_id' and 'geometry'
+    columns (see network.nodes_gdf_from_graph, Stage 3)."""
+    classified = competitors_gdf[competitors_gdf["classification"].notna()]
+    merged = classified.merge(
+        nodes_gdf[["node_id", "geometry"]], left_on="nearest_node_id",
+        right_on="node_id", suffixes=("", "_node"),
+    )
+    return gpd.GeoDataFrame(
+        {"classification": merged["classification"].values},
+        geometry=merged["geometry_node"].values,
+        crs=competitors_gdf.crs,
     )

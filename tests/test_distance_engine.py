@@ -59,3 +59,49 @@ def test_evaluate_candidate_no_competitor_found_within_search_range():
     assert result.strict_pass is True
     assert result.strict_margin_m is None
     assert result.lenient_pass is True
+
+
+import geopandas as gpd
+from shapely.geometry import Point
+
+from distance_engine import build_classification_landuse_gdf, build_lenient_competitor_points
+
+
+def test_build_classification_landuse_gdf_drops_unclassified():
+    competitors = gpd.GeoDataFrame(
+        {"classification": ["alta", None]},
+        geometry=[Point(0, 0), Point(10, 10)],
+        crs="EPSG:25830",
+    )
+    result = build_classification_landuse_gdf(competitors)
+    assert len(result) == 1
+    assert result.iloc[0]["classification"] == "alta"
+
+
+def test_build_lenient_competitor_points_uses_node_coordinates():
+    competitors = gpd.GeoDataFrame(
+        {"classification": ["alta"], "nearest_node_id": ["n1"]},
+        geometry=[Point(5, 5)],  # real position, offset from the node
+        crs="EPSG:25830",
+    )
+    nodes_gdf = gpd.GeoDataFrame(
+        {"node_id": ["n1"]}, geometry=[Point(0, 0)], crs="EPSG:25830",
+    )
+    result = build_lenient_competitor_points(competitors, nodes_gdf)
+    assert len(result) == 1
+    assert result.iloc[0]["classification"] == "alta"
+    assert result.iloc[0].geometry.x == 0.0
+    assert result.iloc[0].geometry.y == 0.0
+
+
+def test_build_lenient_competitor_points_drops_unclassified():
+    competitors = gpd.GeoDataFrame(
+        {"classification": ["alta", None], "nearest_node_id": ["n1", "n2"]},
+        geometry=[Point(5, 5), Point(50, 50)],
+        crs="EPSG:25830",
+    )
+    nodes_gdf = gpd.GeoDataFrame(
+        {"node_id": ["n1", "n2"]}, geometry=[Point(0, 0), Point(40, 40)], crs="EPSG:25830",
+    )
+    result = build_lenient_competitor_points(competitors, nodes_gdf)
+    assert len(result) == 1
