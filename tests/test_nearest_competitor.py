@@ -1,7 +1,8 @@
 import geopandas as gpd
-from shapely.geometry import Point
+import networkx as nx
+from shapely.geometry import Point, LineString
 
-from nearest_competitor import build_competitor_node_index
+from nearest_competitor import build_competitor_node_index, find_nearest_competitor
 
 
 def _competitors_gdf(rows):
@@ -37,3 +38,91 @@ def test_build_competitor_node_index_groups_by_node():
     assert record["offset_distance_m"] == 0.5
     assert record["x"] == 300.0
     assert record["y"] == 400.0
+
+
+def _line_graph():
+    g = nx.MultiGraph()
+    coords = {"n0": (0, 0), "n1": (10, 0), "n2": (20, 0), "n3": (30, 0)}
+    for node_id, (x, y) in coords.items():
+        g.add_node(node_id, x=x, y=y)
+    for u, v in [("n0", "n1"), ("n1", "n2"), ("n2", "n3")]:
+        (x1, y1), (x2, y2) = coords[u], coords[v]
+        g.add_edge(u, v, geom=LineString([(x1, y1), (x2, y2)]))
+    return g
+
+
+def test_find_nearest_competitor_lenient_picks_closest_by_network_distance():
+    graph = _line_graph()
+    index = {
+        "n2": [{
+            "id_local": "1", "rotulo": "Bar Uno", "desc_epigrafe": "BAR SIN COCINA",
+            "classification": "moderada", "offset_distance_m": 5.0, "x": 20.0, "y": 0.0,
+        }],
+        "n3": [{
+            "id_local": "2", "rotulo": "Bar Dos", "desc_epigrafe": "CAFETERIA",
+            "classification": "moderada", "offset_distance_m": 0.0, "x": 30.0, "y": 0.0,
+        }],
+    }
+    result = find_nearest_competitor(
+        graph, "n0", index, cutoff_m=350, candidate_offset_m=0.0, strict=False,
+    )
+    # n2 is 20m away (network), n3 is 30m away -- n2's competitor wins
+    # despite its larger offset_distance_m, because lenient ignores offsets.
+    assert result.id_local == "1"
+    assert result.distance_m == 20.0
+
+
+def test_find_nearest_competitor_respects_cutoff():
+    graph = _line_graph()
+    index = {
+        "n3": [{
+            "id_local": "2", "rotulo": "Bar Dos", "desc_epigrafe": "CAFETERIA",
+            "classification": "moderada", "offset_distance_m": 0.0, "x": 30.0, "y": 0.0,
+        }],
+    }
+    result = find_nearest_competitor(
+        graph, "n0", index, cutoff_m=25, candidate_offset_m=0.0, strict=False,
+    )
+    # n3 is 30m away, beyond the 25m cutoff -- nothing found.
+    assert result is None
+
+
+def test_find_nearest_competitor_classification_filter_excludes_non_matching():
+    graph = _line_graph()
+    index = {
+        "n1": [{
+            "id_local": "1", "rotulo": "Bar Uno", "desc_epigrafe": "BAR SIN COCINA",
+            "classification": "alta", "offset_distance_m": 0.0, "x": 10.0, "y": 0.0,
+        }],
+        "n2": [{
+            "id_local": "2", "rotulo": "Bar Dos", "desc_epigrafe": "CAFETERIA",
+            "classification": "moderada", "offset_distance_m": 0.0, "x": 20.0, "y": 0.0,
+        }],
+    }
+    result = find_nearest_competitor(
+        graph, "n0", index, cutoff_m=350, candidate_offset_m=0.0, strict=False,
+        classification_filter="moderada",
+    )
+    # Closer competitor (n1, alta) is filtered out; moderada one at n2 wins.
+    assert result.id_local == "2"
+    assert result.distance_m == 20.0
+
+
+def test_find_nearest_competitor_tie_break_lowest_id_local():
+    graph = _line_graph()
+    index = {
+        "n2": [
+            {
+                "id_local": "9", "rotulo": "Bar Nueve", "desc_epigrafe": "CAFETERIA",
+                "classification": "moderada", "offset_distance_m": 0.0, "x": 20.0, "y": 0.0,
+            },
+            {
+                "id_local": "2", "rotulo": "Bar Dos", "desc_epigrafe": "CAFETERIA",
+                "classification": "moderada", "offset_distance_m": 0.0, "x": 20.0, "y": 0.0,
+            },
+        ],
+    }
+    result = find_nearest_competitor(
+        graph, "n0", index, cutoff_m=350, candidate_offset_m=0.0, strict=False,
+    )
+    assert result.id_local == "2"
