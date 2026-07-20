@@ -26,3 +26,33 @@ def build_address_label(tvia: str | None, nombre: str, numero: str) -> str:
     if numero and numero != "Desconocido":
         return f"{street}, {numero}"
     return street
+
+
+def join_address_labels(
+    results_gdf: gpd.GeoDataFrame, portal_gdf: gpd.GeoDataFrame
+) -> gpd.GeoDataFrame:
+    """Left-join results_gdf to portal_gdf on id_porpk, adding an
+    'address' column. Rows with no match keep their other columns with a
+    null address rather than being dropped."""
+    labels = portal_gdf[["id_porpk", "tvia", "nombre", "numero"]].copy()
+    labels["address"] = labels.apply(
+        lambda row: build_address_label(row["tvia"], row["nombre"], row["numero"]), axis=1,
+    )
+    return results_gdf.merge(labels[["id_porpk", "address"]], on="id_porpk", how="left")
+
+
+def join_occupancy_context(
+    results_gdf: gpd.GeoDataFrame, tagged_gdf: gpd.GeoDataFrame
+) -> gpd.GeoDataFrame:
+    """Left-join results_gdf to tagged_gdf on id_porpk, adding
+    has_commercial_local, current_activity_summary (parsed from its GPKG
+    JSON-string form into a real list-of-dicts), and
+    is_existing_hosteleria_class."""
+    context = tagged_gdf[[
+        "id_porpk", "has_commercial_local", "current_activity_summary",
+        "is_existing_hosteleria_class",
+    ]].copy()
+    context["current_activity_summary"] = context["current_activity_summary"].apply(
+        lambda value: json.loads(value) if isinstance(value, str) else value
+    )
+    return results_gdf.merge(context, on="id_porpk", how="left")
