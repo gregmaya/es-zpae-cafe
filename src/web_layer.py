@@ -20,7 +20,12 @@ def build_address_label(tvia: str | None, nombre: str, numero: str) -> str:
     "Desconocido" (a real placeholder in the source data for an unknown
     house number) is omitted rather than printed verbatim. A null tvia
     (present for a small number of real rows) falls back to just the
-    street name."""
+    street name. A missing tvia read back from GPKG via geopandas comes
+    through as float('nan'), not None -- confirmed against real data --
+    and NaN is truthy in Python, so it must be checked explicitly rather
+    than relying on `if tvia:` alone."""
+    if isinstance(tvia, float) and math.isnan(tvia):
+        tvia = None
     street = nombre.title()
     if tvia:
         street = f"{tvia.title()} {street}"

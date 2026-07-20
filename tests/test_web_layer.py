@@ -28,6 +28,14 @@ def test_build_address_label_null_tvia_and_unknown_numero():
     assert build_address_label(None, "GRAN VIA", "Desconocido") == "Gran Via"
 
 
+def test_build_address_label_handles_nan_tvia_from_gpkg_read():
+    # geopandas reads a missing tvia back from GPKG as float('nan'), not
+    # None -- confirmed against real data (rt_portalpk_p_zpae_clip.gpkg
+    # has exactly one such row). NaN is truthy in Python, so `if tvia:`
+    # alone would try to call .title() on a float and crash.
+    assert build_address_label(math.nan, "DESCONOCIDO", "3") == "Desconocido, 3"
+
+
 def _results_gdf(id_porpks):
     return gpd.GeoDataFrame(
         {"id_porpk": id_porpks},
