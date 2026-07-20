@@ -538,9 +538,10 @@ nearest-competitor lookups (strict/lenient × binding/overall), the
 competitor's EPSG:25830 `x`/`y` float columns are transformed to lon/lat
 via a separate `pyproj.Transformer` pass (since they're not geometry columns,
 just coordinate values), creating 8 new columns: the original EPSG:25830
-`x`/`y` are preserved, and new `x_lon`/`y_lat` columns hold the web CRS
-versions. None values pass through as None (no competitor found within
-350m search cutoff for that combination).
+`x`/`y` are preserved, and new `{prefix}_lon`/`{prefix}_lat` columns (e.g.
+`strict_nearest_binding_lon`/`strict_nearest_binding_lat`) hold the web CRS
+versions, one pair per lookup combination. None values pass through as None
+(no competitor found within 350m search cutoff for that combination).
 
 **JSON parsing.** The `current_activity_summary` field, stored in GPKG as a
 JSON string, is parsed back into a real Python list-of-dicts before writing

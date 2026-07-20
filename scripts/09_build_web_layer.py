@@ -55,6 +55,14 @@ for prefix in COMPETITOR_LOOKUP_PREFIXES:
 
 results = results.to_crs("EPSG:4326")
 
+# geopandas/GDAL serialize object-dtype bool columns (needed upstream for
+# `is True`/`is False` identity checks) as the strings "True"/"False" in
+# GeoJSON output, not as JSON booleans. Cast to genuine bool dtype here so
+# these fields match the real JSON booleans (true/false) produced for
+# strict_pass/lenient_pass/etc.
+results["has_commercial_local"] = results["has_commercial_local"].astype(bool)
+results["is_existing_hosteleria_class"] = results["is_existing_hosteleria_class"].astype(bool)
+
 out_path = PROCESSED_DIR / "zpae_viability_map.geojson"
 results.to_file(out_path, driver="GeoJSON")
 print(f"Saved to {out_path}")

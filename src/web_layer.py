@@ -56,6 +56,21 @@ def _to_bool(value):
     return bool(value)
 
 
+def _replace_nan_with_none(value):
+    """Recursively replace float NaN with None in a parsed JSON structure,
+    so it can be safely re-serialized as valid JSON (bare NaN is not valid
+    JSON syntax, but json.loads accepts it as an extension -- confirmed
+    present in real current_activity_summary data, e.g. id_seccion: NaN
+    for some records)."""
+    if isinstance(value, float) and math.isnan(value):
+        return None
+    if isinstance(value, dict):
+        return {k: _replace_nan_with_none(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_replace_nan_with_none(v) for v in value]
+    return value
+
+
 def join_occupancy_context(
     results_gdf: gpd.GeoDataFrame, tagged_gdf: gpd.GeoDataFrame
 ) -> gpd.GeoDataFrame:
@@ -68,7 +83,7 @@ def join_occupancy_context(
         "is_existing_hosteleria_class",
     ]].copy()
     context["current_activity_summary"] = context["current_activity_summary"].apply(
-        lambda value: json.loads(value) if isinstance(value, str) else value
+        lambda value: _replace_nan_with_none(json.loads(value)) if isinstance(value, str) else value
     )
     # Force object dtype on the result: Series.apply()/merge() would
     # otherwise infer a specialized numpy bool dtype, which hands back

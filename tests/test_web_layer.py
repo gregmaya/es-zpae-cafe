@@ -97,6 +97,27 @@ def test_join_occupancy_context_attaches_fields_and_parses_json():
     ]
 
 
+def test_join_occupancy_context_sanitizes_nan_in_activity_summary():
+    # Real data contains literal NaN tokens in this JSON string column
+    # (e.g. id_seccion: NaN for ~1,481 of 13,876 real rows) -- json.loads
+    # accepts bare NaN as an extension, but re-serializing it produces
+    # invalid JSON, so it must be sanitized to None/null.
+    results = _results_gdf([1])
+    tagged = gpd.GeoDataFrame(
+        {
+            "id_porpk": [1],
+            "has_commercial_local": pd.array([True], dtype=object),
+            "current_activity_summary": ['[{"id_seccion": NaN, "desc_epigrafe": NaN, "desc_situacion_local": "Abierto"}]'],
+            "is_existing_hosteleria_class": pd.array([True], dtype=object),
+        },
+        geometry=[Point(0, 0)],
+        crs="EPSG:25830",
+    )
+    joined = join_occupancy_context(results, tagged)
+    summary = joined.iloc[0]["current_activity_summary"]
+    assert summary == [{"id_seccion": None, "desc_epigrafe": None, "desc_situacion_local": "Abierto"}]
+
+
 def test_join_occupancy_context_coerces_string_booleans_from_gpkg():
     # GPKG has no native boolean type -- GDAL round-trips Python bool
     # columns as the literal strings "True"/"False", confirmed against
