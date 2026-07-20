@@ -67,21 +67,52 @@ def test_join_address_labels_left_join_keeps_unmatched_rows():
 
 
 def test_join_occupancy_context_attaches_fields_and_parses_json():
+    # Fixture mirrors real upstream dtype conventions: src/hosteleria.py's
+    # summarize_candidate_context stores these boolean columns as
+    # object-dtype-wrapped native Python bool (via .astype(object)) to
+    # preserve `is True`/`is False` semantics against numpy.bool_. Using
+    # pd.array(..., dtype=object) here (rather than a plain list, which
+    # pandas would infer as numpy.bool_) lets this test's identity
+    # assertions actually catch a regression that silently loses that
+    # property during the join.
     results = _results_gdf([1])
     tagged = gpd.GeoDataFrame(
         {
             "id_porpk": [1],
-            "has_commercial_local": [True],
+            "has_commercial_local": pd.array([True], dtype=object),
             "current_activity_summary": ['[{"id_seccion": "I", "desc_epigrafe": "BAR RESTAURANTE", "desc_situacion_local": "Abierto"}]'],
-            "is_existing_hosteleria_class": [True],
+            "is_existing_hosteleria_class": pd.array([True], dtype=object),
         },
         geometry=[Point(0, 0)],
         crs="EPSG:25830",
     )
     joined = join_occupancy_context(results, tagged)
     row = joined.iloc[0]
-    assert row["has_commercial_local"] == True
-    assert row["is_existing_hosteleria_class"] == True
+    assert row["has_commercial_local"] is True
+    assert row["is_existing_hosteleria_class"] is True
     assert row["current_activity_summary"] == [
         {"id_seccion": "I", "desc_epigrafe": "BAR RESTAURANTE", "desc_situacion_local": "Abierto"}
     ]
+
+
+def test_join_occupancy_context_coerces_string_booleans_from_gpkg():
+    # GPKG has no native boolean type -- GDAL round-trips Python bool
+    # columns as the literal strings "True"/"False", confirmed against
+    # real data in candidate_addresses_zpae_tagged.gpkg.
+    results = _results_gdf([1, 2])
+    tagged = gpd.GeoDataFrame(
+        {
+            "id_porpk": [1, 2],
+            "has_commercial_local": ["True", "False"],
+            "current_activity_summary": ["[]", "[]"],
+            "is_existing_hosteleria_class": ["False", "True"],
+        },
+        geometry=[Point(0, 0), Point(1, 1)],
+        crs="EPSG:25830",
+    )
+    joined = join_occupancy_context(results, tagged)
+    row0, row1 = joined.iloc[0], joined.iloc[1]
+    assert row0["has_commercial_local"] is True
+    assert row0["is_existing_hosteleria_class"] is False
+    assert row1["has_commercial_local"] is False
+    assert row1["is_existing_hosteleria_class"] is True

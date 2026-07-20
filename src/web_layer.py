@@ -41,6 +41,20 @@ def join_address_labels(
     return results_gdf.merge(labels[["id_porpk", "address"]], on="id_porpk", how="left")
 
 
+def _to_bool(value):
+    """Coerce a boolean-ish value to a real Python bool. GPKG has no
+    native boolean column type, so GDAL round-trips Python bool columns
+    (stored as object-dtype by src/hosteleria.py's
+    summarize_candidate_context) as the literal strings "True"/"False"
+    on read via geopandas.read_file(). Handles that case, an already-real
+    bool, and anything else pandas might hand back."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value == "True"
+    return bool(value)
+
+
 def join_occupancy_context(
     results_gdf: gpd.GeoDataFrame, tagged_gdf: gpd.GeoDataFrame
 ) -> gpd.GeoDataFrame:
@@ -54,5 +68,16 @@ def join_occupancy_context(
     ]].copy()
     context["current_activity_summary"] = context["current_activity_summary"].apply(
         lambda value: json.loads(value) if isinstance(value, str) else value
+    )
+    # Force object dtype on the result: Series.apply()/merge() would
+    # otherwise infer a specialized numpy bool dtype, which hands back
+    # numpy.bool_ scalars that fail `is True`/`is False` identity checks
+    # (see src/hosteleria.py's summarize_candidate_context for the same
+    # concern upstream).
+    context["has_commercial_local"] = context["has_commercial_local"].apply(_to_bool).astype(
+        object
+    )
+    context["is_existing_hosteleria_class"] = (
+        context["is_existing_hosteleria_class"].apply(_to_bool).astype(object)
     )
     return results_gdf.merge(context, on="id_porpk", how="left")
