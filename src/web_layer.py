@@ -8,6 +8,7 @@ docs/superpowers/specs/2026-07-20-stage5-web-layer-design.md.
 """
 
 import json
+import math
 
 import geopandas as gpd
 from pyproj import Transformer
@@ -81,3 +82,24 @@ def join_occupancy_context(
         context["is_existing_hosteleria_class"].apply(_to_bool).astype(object)
     )
     return results_gdf.merge(context, on="id_porpk", how="left")
+
+
+def reproject_competitor_locations(
+    gdf: gpd.GeoDataFrame, x_col: str, y_col: str, source_crs: str
+) -> tuple[list, list]:
+    """Reproject a competitor-location x/y column pair (plain floats, not
+    GeoDataFrame geometry -- e.g. the nearest-competitor lookup columns
+    from Stage 4) from source_crs to EPSG:4326. Returns (lons, lats),
+    same order as gdf. None/NaN input coordinates pass through as None
+    rather than being reprojected."""
+    transformer = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
+    lons, lats = [], []
+    for x, y in zip(gdf[x_col], gdf[y_col]):
+        if x is None or y is None or (isinstance(x, float) and math.isnan(x)):
+            lons.append(None)
+            lats.append(None)
+            continue
+        lon, lat = transformer.transform(x, y)
+        lons.append(lon)
+        lats.append(lat)
+    return lons, lats

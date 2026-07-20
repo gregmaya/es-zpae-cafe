@@ -1,8 +1,10 @@
+import math
+
 import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Point
 
-from web_layer import build_address_label, join_address_labels, join_occupancy_context
+from web_layer import build_address_label, join_address_labels, join_occupancy_context, reproject_competitor_locations
 
 
 def test_build_address_label_normal_case():
@@ -116,3 +118,25 @@ def test_join_occupancy_context_coerces_string_booleans_from_gpkg():
     assert row0["is_existing_hosteleria_class"] is False
     assert row1["has_commercial_local"] is False
     assert row1["is_existing_hosteleria_class"] is True
+
+
+def test_reproject_competitor_locations_known_coordinate():
+    # A known EPSG:25830 point in central Madrid; expected lon/lat computed
+    # independently via pyproj.Transformer (verified against
+    # EPSG:25830 -> EPSG:4326 for this exact input).
+    gdf = _results_gdf([1])
+    gdf["comp_x"] = [440000.0]
+    gdf["comp_y"] = [4474000.0]
+    lons, lats = reproject_competitor_locations(gdf, "comp_x", "comp_y", "EPSG:25830")
+    assert math.isclose(lons[0], -3.7071991233876656, abs_tol=1e-4)
+    assert math.isclose(lats[0], 40.41446049371108, abs_tol=1e-4)
+
+
+def test_reproject_competitor_locations_passes_through_none():
+    gdf = _results_gdf([1, 2])
+    gdf["comp_x"] = [440000.0, None]
+    gdf["comp_y"] = [4474000.0, None]
+    lons, lats = reproject_competitor_locations(gdf, "comp_x", "comp_y", "EPSG:25830")
+    assert lons[1] is None
+    assert lats[1] is None
+    assert lons[0] is not None
