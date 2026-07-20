@@ -11,6 +11,84 @@ Standalone repo — not part of the Healthy Transport modular stack, though it
 borrows the same conventions (Python, GeoPandas, ETRS89/EPSG:25830 as native CRS,
 reprojecting to EPSG:4326 only for the web layer).
 
+## What this actually does, in plain English
+
+Madrid has four small neighbourhoods (Centro, Gaztambide, AZCA-Av. de Brasil,
+Trafalgar-Ríos Rosas) that are officially "saturated" with noise — the city
+has designated them Zonas de Protección Acústica Especial (ZPAE) — and each
+one has its own local law restricting *where* a new bar or café can open. The
+rule isn't "no new bars" — it's "a new bar has to be a certain distance away
+from the nearest existing bar/nightclub/restaurant," and that minimum
+distance depends on how loud the street is officially rated. So the same
+empty shop unit might be a legal spot for a café or an illegal one, purely
+based on what's already nearby and how loud both streets are rated.
+
+This tool answers that question automatically, for every address in those
+four zones: **if you tried to open a café/bar here, would the council
+actually let you, based purely on distance to existing venues?** It does
+that by combining four official government datasets (the noise-zone maps,
+the business registry, the street network, and the address registry) and
+running the actual legal distance rule against real walking distances —
+not straight-line "as the crow flies" distances, since the law explicitly
+requires distance measured along the street, door to door.
+
+The end product (not built yet — see Stages 5-6 below) is a static map:
+click any building in one of the four zones and see pass/fail, plus *why*
+— which specific existing venue is too close, and by how much.
+
+## Findings and legal interpretations we had to make
+
+The law here is not a simple lookup table, and reading the actual council
+documents (not summaries) surfaced several things worth calling out
+explicitly rather than burying in code comments:
+
+- **The rule is asymmetric and two-sided.** The minimum distance depends on
+  *both* how loud the new café's own street is rated *and* how loud the
+  existing competitor's street is rated — these aren't the same number. In
+  Trafalgar-Ríos Rosas, for example, a café on a "Baja" (quiet) street needs
+  150m from a competitor on an "Alta" (loud) street, but a café on a
+  "Moderada" street only needs 100m from that same competitor. See
+  [`src/zones.py`](src/zones.py) for the full rule table per zone.
+- **One zone's extra rule turned out to be legally dead.** Centro's
+  Normativa document contains an Article 21 imposing an additional
+  zone-boundary distance rule — but it's struck through in the official PDF
+  with a footnote citing a 2022 Tribunal Superior de Justicia de Madrid
+  ruling that annulled it. We treat it as void, not as an open question.
+- **"Which venues count as competitors" isn't just "other cafés."** The law
+  is written in terms of a 1998 noise-classification decree (Decreto
+  184/1998), which sweeps in restaurants, bars, cafeterías, nightclubs,
+  live-music venues, and banquet halls — but explicitly *not* gyms, pools,
+  theatres, museums, or hotel accommodation (even though a hotel can have a
+  street-facing bar — the business registry doesn't record that distinction,
+  so we exclude it rather than guess). See [`src/activities.py`](src/activities.py).
+- **"Loud music" carve-outs aren't uniform across zones.** Three of the four
+  zones ban *any* café/bar with live music outright in "Moderada" streets;
+  AZCA's outright ban is narrower — only restaurants with live music
+  specifically, not the whole music-venue category. This project models
+  the plain (no live music) case throughout, since that's the common one.
+- **Sound-street classification, not distance, is the hard stop in most
+  zones.** Three of the four zones flatly ban *any* new café/bar on their
+  loudest ("Alta") streets, no matter how far from anything else — distance
+  never comes into it for those addresses. Of our 9,838 evaluable
+  addresses, 1,939 fail this way.
+- **The wording is ambiguous about the last few metres.** The law says
+  distance is measured door-to-door along the street — but doesn't say
+  whether that includes the short walk from a building's actual front door
+  out to the public street itself. Rather than picking one reading, we
+  computed the result both ways (see Stage 4 below); they agree on all but
+  32 of 9,838 addresses.
+- **Some numbers needed manual cross-checking against amendments.** A few
+  zones had later modifications (BOAM bulletins) layered on top of their
+  original text; one zone's amendment text didn't cleanly match the PDF we
+  had, and rather than silently pick a number, we flagged the discrepancy
+  in `src/zones.py` for anyone who needs that specific edge case resolved.
+
+None of this is guesswork dressed up as certainty — every interpretation
+above is sourced to the actual council PDF and documented at the point in
+the code where it matters (`src/zones.py`, `src/activities.py`,
+`docs/data_sources.md`), specifically so a reader can check our reading of
+the law against the source rather than just trusting a summary.
+
 ## Status
 
 **In plain terms: we know the actual rules, we've mapped where every bar,
