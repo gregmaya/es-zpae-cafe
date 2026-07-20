@@ -522,9 +522,10 @@ stale output.
    (building number). Joined to add a human-readable `address` label built
    via the rule: `"{title-cased tvia} {nombre}, {numero}"` (e.g.
    `"CALLE", "ARGANZUELA", "2"` → `"Calle Arganzuela, 2"`). Handles edge
-   cases: non-numeric `numero` (some address points have `extension:
-   "No aplicable"`) and missing `tvia` both degrade gracefully (label still
-   formats correctly rather than producing malformed strings).
+   cases: `numero == "Desconocido"` (a real placeholder in the source data
+   for an unknown house number) is omitted rather than printed verbatim; other
+   non-empty `numero` values are appended as-is. Missing `tvia` (present for a
+   small number of real rows) falls back to just the title-cased street name.
 3. `candidate_addresses_zpae_tagged.gpkg` (Stage 2/7 output) — carries
    `has_commercial_local` (boolean: whether a commercial local exists within
    15m of the address), `current_activity_summary` (JSON, rounded-tripped
