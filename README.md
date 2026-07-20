@@ -67,8 +67,13 @@ before this becomes a usable map.
   ways of measuring distance agreed almost everywhere — only 32 out of
   9,838 addresses flipped between pass and fail depending on which
   convention was used.
-- **Stages 5–6 — not started yet:** baking these results into a static
-  precomputed layer, then the final map website.
+- **Stage 5 — done.** Assembled the static `zpae_viability_map.geojson`
+  output, ready for the map website to load directly: one Point feature per
+  evaluable candidate (9,838 total) in EPSG:4326, with human-readable address
+  labels, today's occupancy context (commercial/residential status, activity
+  summary), and reprojects all nearest-competitor lookups' coordinates to
+  web-friendly lon/lat pairs alongside their original EPSG:25830 coordinates.
+- **Stage 6 — not started yet:** the final map website itself.
 
 ## Setup
 
