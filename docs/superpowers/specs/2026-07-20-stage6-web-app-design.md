@@ -120,6 +120,12 @@ def build_search_index(gdf: gpd.GeoDataFrame) -> list[dict]:
 - **Search bar**: free-text substring match against `search_index.json`'s
   `address` field; selecting a match flies the map to it and opens its
   popup.
+- **Disagreement highlight toggle** (checkbox, off by default, labeled
+  "Highlight strict/lenient disagreements"): adds a distinct outline/halo
+  to the 32 of 9,838 candidates where `interpretations_disagree` is true,
+  without hiding anything else — keeps the outliers visible in their full
+  geographic context (e.g. whether they cluster in one zone) rather than
+  isolating them.
 - **Regulatory layer toggle** (checkbox, off by default, labeled "Show
   zoning rules"): reveals `zpae_zones.geojson` as subtle zone outlines and
   `zpae_streets.geojson` as street segments colored by `Clasifica`, using
