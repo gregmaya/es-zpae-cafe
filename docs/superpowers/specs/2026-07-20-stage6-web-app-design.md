@@ -13,7 +13,8 @@ the four zones and see pass/fail, plus *why*."
 ## Non-goals
 
 - No backend, no live queries — everything is precomputed static data
-  (GeoJSON/PMTiles) served as static files.
+  (GeoJSON/PMTiles) served as static files, aside from basemap tiles
+  loaded from CARTO's free hosted service (see Map behavior).
 - No coverage outside the four ZPAE zones — out of scope for the whole
   project, not just this stage.
 - No automated UI/browser test suite — this repo has no JS test tooling
@@ -100,6 +101,12 @@ def trim_candidate_properties(properties: dict) -> dict:
 
 ## Map behavior
 
+- **Basemap**: CARTO Positron (`basemaps.cartocdn.com` vector style,
+  loaded directly by URL in `app.js`) — a minimal, light, label-light
+  style well suited to a data-focused map. Free, no API key, no pipeline
+  changes; the only external runtime dependency in an otherwise fully
+  static site, which is standard practice for this style of map (same
+  approach used by most data-journalism/analytics maps).
 - **Candidate points**: colored by verdict — green (pass) / red (fail) /
   grey (`prohibited_outright`). A **strict/lenient toggle** switches which
   verdict drives the coloring (paint-property swap, no data reload); the
