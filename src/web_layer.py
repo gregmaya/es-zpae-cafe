@@ -11,6 +11,7 @@ import json
 import math
 
 import geopandas as gpd
+import pandas as pd
 from pyproj import Transformer
 
 
@@ -144,3 +145,17 @@ def trim_candidate_properties(properties: dict) -> dict:
         key: value for key, value in properties.items()
         if key not in _REDUNDANT_COMPETITOR_XY_COLUMNS
     }
+
+
+def build_search_index(gdf: gpd.GeoDataFrame) -> list[dict]:
+    """Build the {id_porpk, address, lon, lat} records for the search
+    bar's client-side index, from an EPSG:4326 GeoDataFrame of Points."""
+    return [
+        {
+            "id_porpk": row.id_porpk,
+            "address": None if pd.isna(row.address) else row.address,
+            "lon": row.geometry.x,
+            "lat": row.geometry.y,
+        }
+        for row in gdf.itertuples()
+    ]

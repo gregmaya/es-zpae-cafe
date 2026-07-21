@@ -4,7 +4,7 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Point
 
-from web_layer import build_address_label, join_address_labels, join_occupancy_context, reproject_competitor_locations, trim_candidate_properties
+from web_layer import build_address_label, build_search_index, join_address_labels, join_occupancy_context, reproject_competitor_locations, trim_candidate_properties
 
 
 def test_build_address_label_normal_case():
@@ -203,3 +203,28 @@ def test_trim_candidate_properties_missing_columns_is_a_noop():
     # if an x/y key is simply absent from this particular properties dict.
     properties = {"id_porpk": 1, "address": "Plaza Colon"}
     assert trim_candidate_properties(properties) == properties
+
+
+def test_build_search_index_extracts_id_address_lon_lat():
+    gdf = gpd.GeoDataFrame(
+        {"id_porpk": [1, 2], "address": ["Calle Arganzuela, 2", "Plaza Colon"]},
+        geometry=[Point(-3.71, 40.41), Point(-3.70, 40.42)],
+        crs="EPSG:4326",
+    )
+    index = build_search_index(gdf)
+    assert index == [
+        {"id_porpk": 1, "address": "Calle Arganzuela, 2", "lon": -3.71, "lat": 40.41},
+        {"id_porpk": 2, "address": "Plaza Colon", "lon": -3.70, "lat": 40.42},
+    ]
+
+
+def test_build_search_index_handles_null_address():
+    # join_address_labels is a left join -- a row with no portal match
+    # keeps a null address rather than being dropped (see Stage 5).
+    gdf = gpd.GeoDataFrame(
+        {"id_porpk": [1], "address": [None]},
+        geometry=[Point(-3.71, 40.41)],
+        crs="EPSG:4326",
+    )
+    index = build_search_index(gdf)
+    assert index == [{"id_porpk": 1, "address": None, "lon": -3.71, "lat": 40.41}]
