@@ -85,3 +85,14 @@ map.on("load", () => {
     map.getCanvas().style.cursor = "";
   });
 });
+
+document.getElementById("verdict-toggle").addEventListener("change", (e) => {
+  currentVerdictPrefix = e.target.checked ? "lenient" : "strict";
+  if (map.getLayer("candidate-points")) {
+    map.setPaintProperty(
+      "candidate-points",
+      "circle-color",
+      verdictColorExpression(currentVerdictPrefix)
+    );
+  }
+});
