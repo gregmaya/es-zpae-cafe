@@ -4,7 +4,7 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Point
 
-from web_layer import build_address_label, join_address_labels, join_occupancy_context, reproject_competitor_locations
+from web_layer import build_address_label, join_address_labels, join_occupancy_context, reproject_competitor_locations, trim_candidate_properties
 
 
 def test_build_address_label_normal_case():
@@ -169,3 +169,37 @@ def test_reproject_competitor_locations_passes_through_none():
     assert lons[1] is None
     assert lats[1] is None
     assert lons[0] is not None
+
+
+def test_trim_candidate_properties_drops_redundant_xy_columns():
+    properties = {
+        "id_porpk": 1,
+        "address": "Calle Arganzuela, 2",
+        "strict_pass": True,
+        "strict_nearest_binding_x": 440000.0,
+        "strict_nearest_binding_y": 4474000.0,
+        "strict_nearest_binding_lon": -3.71,
+        "strict_nearest_binding_lat": 40.41,
+        "lenient_nearest_binding_x": 440001.0,
+        "lenient_nearest_binding_y": 4474001.0,
+        "strict_nearest_overall_x": 440002.0,
+        "strict_nearest_overall_y": 4474002.0,
+        "lenient_nearest_overall_x": 440003.0,
+        "lenient_nearest_overall_y": 4474003.0,
+    }
+    trimmed = trim_candidate_properties(properties)
+    assert trimmed == {
+        "id_porpk": 1,
+        "address": "Calle Arganzuela, 2",
+        "strict_pass": True,
+        "strict_nearest_binding_lon": -3.71,
+        "strict_nearest_binding_lat": 40.41,
+    }
+
+
+def test_trim_candidate_properties_missing_columns_is_a_noop():
+    # Not every row has every competitor column populated (e.g. a null
+    # binding lookup on a prohibited-outright address) -- must not raise
+    # if an x/y key is simply absent from this particular properties dict.
+    properties = {"id_porpk": 1, "address": "Plaza Colon"}
+    assert trim_candidate_properties(properties) == properties

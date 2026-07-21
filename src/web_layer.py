@@ -123,3 +123,24 @@ def reproject_competitor_locations(
         lons.append(lon)
         lats.append(lat)
     return lons, lats
+
+
+_REDUNDANT_COMPETITOR_XY_COLUMNS = [
+    f"{prefix}_{axis}"
+    for prefix in (
+        "strict_nearest_binding", "lenient_nearest_binding",
+        "strict_nearest_overall", "lenient_nearest_overall",
+    )
+    for axis in ("x", "y")
+]
+
+
+def trim_candidate_properties(properties: dict) -> dict:
+    """Drop the EPSG:25830 x/y competitor-location columns now redundant
+    with their _lon/_lat companions (added by Stage 5's
+    reproject_competitor_locations), returning the trimmed property dict
+    used for the web tileset."""
+    return {
+        key: value for key, value in properties.items()
+        if key not in _REDUNDANT_COMPETITOR_XY_COLUMNS
+    }
