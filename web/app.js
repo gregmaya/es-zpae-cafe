@@ -28,7 +28,9 @@ function buildPopupHTML(properties) {
   const verdictText = properties.prohibited_outright
     ? "Prohibited outright (Alta street)"
     : pass
-      ? `Pass (margin ${Number(margin).toFixed(1)}m)`
+      ? margin === null || margin === undefined
+        ? "Pass (no distance requirement)"
+        : `Pass (margin ${Number(margin).toFixed(1)}m)`
       : `Fail (short by ${Math.abs(Number(margin)).toFixed(1)}m)`;
 
   const bindingRotulo = properties[`${prefix}_nearest_binding_rotulo`];
