@@ -96,3 +96,59 @@ document.getElementById("verdict-toggle").addEventListener("change", (e) => {
     );
   }
 });
+
+let searchIndex = [];
+
+fetch("data/search_index.json")
+  .then((r) => {
+    if (!r.ok) throw new Error(`search_index.json: HTTP ${r.status}`);
+    return r.json();
+  })
+  .then((data) => {
+    searchIndex = data;
+  })
+  .catch((err) => showError(`Failed to load search index: ${err.message}`));
+
+const searchInput = document.getElementById("search-input");
+const searchResults = document.getElementById("search-results");
+
+searchInput.addEventListener("input", () => {
+  const query = searchInput.value.trim().toLowerCase();
+  searchResults.innerHTML = "";
+  if (query.length < 3) return;
+
+  const matches = searchIndex
+    .filter((entry) => entry.address && entry.address.toLowerCase().includes(query))
+    .slice(0, 10);
+
+  for (const match of matches) {
+    const li = document.createElement("li");
+    li.textContent = match.address;
+    li.addEventListener("click", () => selectSearchResult(match));
+    searchResults.appendChild(li);
+  }
+});
+
+function selectSearchResult(match) {
+  searchResults.innerHTML = "";
+  searchInput.value = match.address;
+  map.flyTo({ center: [match.lon, match.lat], zoom: 18 });
+
+  map.once("idle", () => {
+    const point = map.project([match.lon, match.lat]);
+    const features = map.queryRenderedFeatures(
+      [
+        [point.x - 6, point.y - 6],
+        [point.x + 6, point.y + 6],
+      ],
+      { layers: ["candidate-points"] }
+    );
+    const feature = features.find((f) => f.properties.id_porpk === match.id_porpk);
+    if (feature) {
+      new maplibregl.Popup()
+        .setLngLat([match.lon, match.lat])
+        .setHTML(buildPopupHTML(feature.properties))
+        .addTo(map);
+    }
+  });
+}
