@@ -60,6 +60,7 @@ result = subprocess.run(
         "-l", "candidates",
         "-zg",
         "--drop-densest-as-needed",
+        "--extend-zooms-if-still-dropping",
     ],
     input=json.dumps(trimmed).encode("utf-8"),
     capture_output=True,
