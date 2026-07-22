@@ -8,8 +8,8 @@ verification of the deployed app.
 
 ## Goal
 
-Two small, independent additions to the existing `#toggles` panel in
-`web/index.html` / `web/app.js`:
+Three small, independent additions to `web/index.html` /
+`web/app.js` / `web/style.css`:
 
 1. **Verdict-category filters** — checkboxes to hide/show Pass, Fail, and
    Prohibited candidates independently, to make the map easier to read
@@ -17,8 +17,10 @@ Two small, independent additions to the existing `#toggles` panel in
 2. **Strict/lenient explainer** — a short, non-technical, bilingual
    (English + Spanish) explanation of what "strict" and "lenient" mean,
    since visitors have no other source for this distinction.
+3. **Page title** — a visible heading so a first-time visitor immediately
+   sees what the site is, not just the map.
 
-Both are additive UI changes to the existing `web/app.js`; no new files,
+All three are additive UI changes to the existing files; no new files,
 no build step, no new dependencies.
 
 ## 1. Verdict-category filters
@@ -133,6 +135,24 @@ gets a few rules to keep the disclosure visually consistent with the
 rest of the `#toggles` panel (font size, spacing, matching the existing
 box's white background/shadow if it renders outside `#toggles`, or
 inherits it if nested inside).
+
+## 3. Page title
+
+**UI:** a plain `<h1>` heading rendered over the map, above the
+`#controls` panel (search box + toggles), top-left:
+
+```html
+<h1 id="page-title">ZPAE Café Viability Map</h1>
+```
+
+Same text as the existing `<title>` tag in `web/index.html`, so the tab
+title and the on-page heading stay in sync — no new copy to maintain.
+`style.css` gets minimal rules: positioned like `#controls` (`position:
+absolute`, top-left, above it), white background pill or plain text with
+a subtle text-shadow for legibility over the basemap, matching the
+`#toggles` box's font family (`system-ui, sans-serif`) and roughly its
+shadow/border-radius so it reads as part of the same control cluster
+rather than a separate design language. No JavaScript needed.
 
 ## Testing
 
