@@ -91,6 +91,21 @@ map.on("load", () => {
     map.getCanvas().style.cursor = "";
   });
 
+  map.addLayer({
+    id: "candidate-disagreement-highlight",
+    type: "circle",
+    source: "candidates",
+    "source-layer": "candidates",
+    filter: ["==", ["get", "interpretations_disagree"], true],
+    layout: { visibility: "none" },
+    paint: {
+      "circle-radius": 9,
+      "circle-color": "transparent",
+      "circle-stroke-width": 3,
+      "circle-stroke-color": "#7c3aed",
+    },
+  });
+
   map.addSource("zpae-zones", { type: "geojson", data: "data/zpae_zones.geojson" });
   map.addSource("zpae-streets", { type: "geojson", data: "data/zpae_streets.geojson" });
 
@@ -151,6 +166,16 @@ document.getElementById("regulatory-toggle").addEventListener("change", (e) => {
     if (map.getLayer(layerId)) {
       map.setLayoutProperty(layerId, "visibility", visibility);
     }
+  }
+});
+
+document.getElementById("disagreement-toggle").addEventListener("change", (e) => {
+  if (map.getLayer("candidate-disagreement-highlight")) {
+    map.setLayoutProperty(
+      "candidate-disagreement-highlight",
+      "visibility",
+      e.target.checked ? "visible" : "none"
+    );
   }
 });
 
