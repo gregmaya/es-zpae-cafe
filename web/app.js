@@ -51,6 +51,12 @@ function buildPopupHTML(properties) {
   `;
 }
 
+function showError(message) {
+  const banner = document.getElementById("error-banner");
+  banner.textContent = message;
+  banner.hidden = false;
+}
+
 map.on("load", () => {
   map.addSource("candidates", {
     type: "vector",
@@ -121,6 +127,11 @@ map.on("load", () => {
       .setHTML(`<strong>${p.ZPAE}</strong><p>Classification: ${p.Clasifica}</p>`)
       .addTo(map);
   });
+});
+
+map.on("error", (e) => {
+  const sourceId = e.sourceId || "unknown source";
+  showError(`Failed to load map layer (${sourceId}): ${e.error?.message ?? "unknown error"}`);
 });
 
 document.getElementById("verdict-toggle").addEventListener("change", (e) => {
