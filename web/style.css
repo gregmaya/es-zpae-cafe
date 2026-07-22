@@ -84,3 +84,18 @@ html, body {
   border-radius: 4px;
   font-size: 14px;
 }
+
+#category-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid #eee;
+}
+
+#category-filters span {
+  font-weight: 600;
+  font-size: 12px;
+  color: #555;
+}

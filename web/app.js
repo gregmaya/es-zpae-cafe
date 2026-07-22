@@ -30,6 +30,44 @@ function verdictColorExpression(prefix) {
   ];
 }
 
+let visibleCategories = new Set(["pass", "fail", "prohibited"]);
+
+function categoryFilterExpression(prefix, visible) {
+  const branches = [];
+  if (visible.has("prohibited")) {
+    branches.push(["==", ["get", "prohibited_outright"], true]);
+  }
+  if (visible.has("pass")) {
+    branches.push([
+      "all",
+      ["!=", ["get", "prohibited_outright"], true],
+      ["==", ["get", `${prefix}_pass`], true],
+    ]);
+  }
+  if (visible.has("fail")) {
+    branches.push([
+      "all",
+      ["!=", ["get", "prohibited_outright"], true],
+      ["==", ["get", `${prefix}_pass`], false],
+    ]);
+  }
+  return ["any", ...branches];
+}
+
+function applyCategoryFilters() {
+  const categoryFilter = categoryFilterExpression(currentVerdictPrefix, visibleCategories);
+  if (map.getLayer("candidate-points")) {
+    map.setFilter("candidate-points", categoryFilter);
+  }
+  if (map.getLayer("candidate-disagreement-highlight")) {
+    map.setFilter("candidate-disagreement-highlight", [
+      "all",
+      ["==", ["get", "interpretations_disagree"], true],
+      categoryFilter,
+    ]);
+  }
+}
+
 function buildPopupHTML(properties) {
   const prefix = currentVerdictPrefix;
   const pass = properties[`${prefix}_pass`];
@@ -163,6 +201,7 @@ map.on("load", () => {
   });
 
   map.on("idle", () => hideError());
+  applyCategoryFilters();
 });
 
 const MANAGED_SOURCE_IDS = new Set(["candidates", "zpae-zones", "zpae-streets"]);
@@ -181,6 +220,7 @@ document.getElementById("verdict-toggle").addEventListener("change", (e) => {
       verdictColorExpression(currentVerdictPrefix)
     );
   }
+  applyCategoryFilters();
 });
 
 document.getElementById("regulatory-toggle").addEventListener("change", (e) => {
@@ -201,6 +241,21 @@ document.getElementById("disagreement-toggle").addEventListener("change", (e) =>
     );
   }
 });
+
+function setupCategoryFilterCheckbox(id, category) {
+  document.getElementById(id).addEventListener("change", (e) => {
+    if (e.target.checked) {
+      visibleCategories.add(category);
+    } else {
+      visibleCategories.delete(category);
+    }
+    applyCategoryFilters();
+  });
+}
+
+setupCategoryFilterCheckbox("filter-pass", "pass");
+setupCategoryFilterCheckbox("filter-fail", "fail");
+setupCategoryFilterCheckbox("filter-prohibited", "prohibited");
 
 let searchIndex = [];
 
