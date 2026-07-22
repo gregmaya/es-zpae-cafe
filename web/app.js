@@ -84,6 +84,43 @@ map.on("load", () => {
   map.on("mouseleave", "candidate-points", () => {
     map.getCanvas().style.cursor = "";
   });
+
+  map.addSource("zpae-zones", { type: "geojson", data: "data/zpae_zones.geojson" });
+  map.addSource("zpae-streets", { type: "geojson", data: "data/zpae_streets.geojson" });
+
+  map.addLayer({
+    id: "zpae-zone-outline",
+    type: "line",
+    source: "zpae-zones",
+    layout: { visibility: "none" },
+    paint: { "line-color": "#374151", "line-width": 2, "line-dasharray": [2, 2] },
+  });
+
+  map.addLayer({
+    id: "zpae-street-classification",
+    type: "line",
+    source: "zpae-streets",
+    layout: { visibility: "none" },
+    paint: {
+      "line-width": 3,
+      "line-color": [
+        "match",
+        ["get", "Clasifica"],
+        "Alta", "#dc2626",
+        "Moderada", "#f97316",
+        "Baja", "#eab308",
+        "#9ca3af",
+      ],
+    },
+  });
+
+  map.on("click", "zpae-street-classification", (e) => {
+    const p = e.features[0].properties;
+    new maplibregl.Popup()
+      .setLngLat(e.lngLat)
+      .setHTML(`<strong>${p.ZPAE}</strong><p>Classification: ${p.Clasifica}</p>`)
+      .addTo(map);
+  });
 });
 
 document.getElementById("verdict-toggle").addEventListener("change", (e) => {
@@ -94,6 +131,15 @@ document.getElementById("verdict-toggle").addEventListener("change", (e) => {
       "circle-color",
       verdictColorExpression(currentVerdictPrefix)
     );
+  }
+});
+
+document.getElementById("regulatory-toggle").addEventListener("change", (e) => {
+  const visibility = e.target.checked ? "visible" : "none";
+  for (const layerId of ["zpae-zone-outline", "zpae-street-classification"]) {
+    if (map.getLayer(layerId)) {
+      map.setLayoutProperty(layerId, "visibility", visibility);
+    }
   }
 });
 
