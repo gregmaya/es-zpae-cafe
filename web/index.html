@@ -16,6 +16,11 @@
   </div>
   <div id="toggles">
     <label><input type="checkbox" id="verdict-toggle" /> Lenient verdict</label>
+    <details id="verdict-explainer">
+      <summary>What's strict vs. lenient?</summary>
+      <p lang="en">Strict counts the full walk from a location's door to the nearest street, plus the street-network distance to the other business. Lenient counts only the street-to-street distance, as if both doors sat right on the road.</p>
+      <p lang="es">Estricta cuenta el camino completo desde la puerta del local hasta la calle más cercana, más la distancia por la red de calles hasta el otro negocio. Flexible cuenta solo la distancia calle a calle, como si ambas puertas estuvieran justo sobre la calle.</p>
+    </details>
     <label><input type="checkbox" id="disagreement-toggle" /> Highlight strict/lenient disagreements</label>
     <label><input type="checkbox" id="regulatory-toggle" /> Show zoning rules</label>
     <div id="category-filters">
