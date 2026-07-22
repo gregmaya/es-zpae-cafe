@@ -12,6 +12,15 @@ map.addControl(new maplibregl.NavigationControl(), "top-right");
 
 let currentVerdictPrefix = "strict";
 
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function verdictColorExpression(prefix) {
   return [
     "case",
@@ -40,21 +49,31 @@ function buildPopupHTML(properties) {
     ? properties[`${prefix}_nearest_binding_distance_m`]
     : properties[`${prefix}_nearest_overall_distance_m`];
   const competitorLine = competitorRotulo
-    ? `<p>Nearest: ${competitorRotulo} (${Number(competitorDistance).toFixed(1)}m)</p>`
+    ? `<p>Nearest: ${escapeHtml(competitorRotulo)} (${Number(competitorDistance).toFixed(1)}m)</p>`
     : "";
 
   return `
-    <strong>${properties.address ?? "Unknown address"}</strong>
-    <p>${properties.zpae_zone} — ${properties.classification} street</p>
+    <strong>${escapeHtml(properties.address ?? "Unknown address")}</strong>
+    <p>${escapeHtml(properties.zpae_zone)} — ${escapeHtml(properties.classification)} street</p>
     <p>${verdictText}</p>
     ${competitorLine}
   `;
 }
 
+let errorBannerVisible = false;
+
 function showError(message) {
   const banner = document.getElementById("error-banner");
   banner.textContent = message;
   banner.hidden = false;
+  errorBannerVisible = true;
+}
+
+function hideError() {
+  if (!errorBannerVisible) return;
+  const banner = document.getElementById("error-banner");
+  banner.hidden = true;
+  errorBannerVisible = false;
 }
 
 map.on("load", () => {
@@ -139,14 +158,18 @@ map.on("load", () => {
     const p = e.features[0].properties;
     new maplibregl.Popup()
       .setLngLat(e.lngLat)
-      .setHTML(`<strong>${p.ZPAE}</strong><p>Classification: ${p.Clasifica}</p>`)
+      .setHTML(`<strong>${escapeHtml(p.ZPAE)}</strong><p>Classification: ${escapeHtml(p.Clasifica)}</p>`)
       .addTo(map);
   });
+
+  map.on("idle", () => hideError());
 });
 
+const MANAGED_SOURCE_IDS = new Set(["candidates", "zpae-zones", "zpae-streets"]);
+
 map.on("error", (e) => {
-  const sourceId = e.sourceId || "unknown source";
-  showError(`Failed to load map layer (${sourceId}): ${e.error?.message ?? "unknown error"}`);
+  if (!e.sourceId || !MANAGED_SOURCE_IDS.has(e.sourceId)) return;
+  showError(`Failed to load map layer (${e.sourceId}): ${e.error?.message ?? "unknown error"}`);
 });
 
 document.getElementById("verdict-toggle").addEventListener("change", (e) => {
